@@ -27,23 +27,48 @@ abstract class DaemonRunner extends AbstractRunner {
 		}
 
 		gh_log(INFO, "Greyhole (version %VERSION%) daemon started.");
-		repair_tables();
-		GetGUIDCliRunner::setUniqID();
-		$this->terminology_conversion();
-		set_metastore_backup();
-		Settings::backup();
-		parse_samba_spool();
-		simplify_tasks();
+		$this->initialize();
 		while (TRUE) {
-			parse_samba_spool();
+			// Process the spool directory, and insert each task found there into the database.
+			SambaHelper::process_spool();
+
+			// Check that storage pool drives are OK (using their UUID, or .greyhole_uses_this files)
 			$action = 'check_pool';
 			check_storage_pool_drives();
+
+			// Execute the next tasks from the tasks queue ('tasks' table in the database)
 			execute_next_task();
 		}
 	}
 
 	public function finish($returnValue = 0) {
 		// The daemon should never finish; it will be killed by the init script.
+	}
+	
+	private function initialize() {
+		// Check the database tables, and repair them if needed.
+		repair_tables();
+		
+		// Creates a GUID (if one doesn't exist); will be used to uniquely identify this client when reporting usage to greyhole.net
+		GetGUIDCliRunner::setUniqID();
+		
+		// Terminology changed (attic > trash, graveyard > metadata store, tombstones > metadata files); this requires filesystem & database changes.
+		$this->terminology_conversion();
+		
+		// For files which don't have extra copies, we at least create a copy of the metadata on a separate drive, in order to be able to identify the missing files if a hard drive fails.
+		set_metastore_backup();
+
+		// We backup the database settings to disk, in order to be able to restore them if the database is lost.
+		Settings::backup();
+		
+		// Check that the Greyhole VFS module used by Samba is the correct one for the current Samba version. This is needed when Samba is updated to a new major version after Greyhole is installed.
+		SambaHelper::check_vfs();
+		
+		// Process the spool directory, and insert each task found there into the database.
+		SambaHelper::process_spool();
+		
+		// Simplify the list of tasks in the database. Writing the same file over and over will result in Greyhole only processing one write task.
+		simplify_tasks();
 	}
 
 	private function terminology_conversion() {
