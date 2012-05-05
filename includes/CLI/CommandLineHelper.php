@@ -31,6 +31,7 @@ class CommandLineHelper {
 			'fsck'            => new CliCommandDefinition('fsck',             'f',   null,          'FsckCliRunner',           "Schedule a fsck."),
 			'cancel-fsck'     => new CliCommandDefinition('cancel-fsck',      'C',   null,          'CancelFsckCliRunner',     "Cancel any ongoing or scheduled fsck operations."),
 			'balance'         => new CliCommandDefinition('balance',          'l',   null,          'BalanceCliRunner',        "Balance available space on storage pool drives."),
+			'cancel-balance'  => new CliCommandDefinition('cancel-balance',   'B',   null,          'CancelBalanceCliRunner',  "Cancel any ongoing or scheduled balance operatios."),
 			'stats'           => new CliCommandDefinition('stats',            's',   null,          'StatsCliRunner',          "Display storage pool statistics."),
 			'iostat'          => new CliCommandDefinition('iostat',           'i',   null,          'IoStatsCliRunner',        "I/O statistices for your storage pool drives."),
 			'logs'            => new CliCommandDefinition('logs',             'L',   null,          'LogsCliRunner',           "Display new greyhole.log entries as they are logged."),
