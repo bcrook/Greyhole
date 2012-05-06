@@ -1,6 +1,6 @@
 <?php
 /*
-Copyright 2012 Guillaume Boudreau, Andrew Hopkinson
+Copyright 2010-2012 Guillaume Boudreau
 
 This file is part of Greyhole.
 
@@ -19,8 +19,10 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 class SambaHelper {
+	
+	public static $config_file = '/etc/samba/smb.conf';
 
-	static function check_vfs() {
+	public static function check_vfs() {
 		$vfs_is_ok = FALSE;
 
 		// Samba version
@@ -46,7 +48,7 @@ class SambaHelper {
 		}
 
 		if (!$vfs_is_ok) {
-			gh_log(WARN, "Greyhole VFS module for Samba was missing, or the wrong version for your Samba. It will now be replaced with a symlink to $lib_dir/greyhole/greyhole-samba$version.so");
+			Log::log(WARN, "Greyhole VFS module for Samba was missing, or the wrong version for your Samba. It will now be replaced with a symlink to $lib_dir/greyhole/greyhole-samba$version.so");
 			$vfs_target = "$lib_dir/greyhole/greyhole-samba$version.so";
 			if (is_file($vfs_file)) {
 				unlink($vfs_file);
@@ -56,12 +58,12 @@ class SambaHelper {
 		}
 	}
 	
-	static function get_version() {
+	public static function get_version() {
 		return str_replace(' ', '.', exec('/usr/sbin/smbd --version | awk \'{print $2}\' | awk -F\'-\' \'{print $1}\' | awk -F\'.\' \'{print $1,$2}\''));
 	}
 
-	static function restart() {
-		gh_log(INFO, "The Samba daemon will now restart...");
+	public static function restart() {
+		Log::log(INFO, "The Samba daemon will now restart...");
 		if (is_file('/etc/init/smbd.conf')) {
 			exec("/sbin/restart smbd");
 		} else if (is_file('/etc/init.d/samba')) {
@@ -71,32 +73,28 @@ class SambaHelper {
 		} else if (is_file('/etc/init.d/smbd')) {
 			exec("/etc/init.d/smbd restart");
 		} else {
-			gh_log(CRITICAL, "Couldn't find how to restart Samba. Please restart the Samba daemon manually.");
+			Log::log(CRITICAL, "Couldn't find how to restart Samba. Please restart the Samba daemon manually.");
 		}
 	}
 	
-	static function process_spool($simplify_after_parse=TRUE) {
-		global $action, $trash_share_names, $max_queued_tasks, $db_use_mysql;
+	public static function process_spool($simplify_after_parse=TRUE) {
+		global $trash_share_names, $max_queued_tasks;
 
-		// Let's parse syslog still... just in case people are still using that.
-		parse_samba_log($simplify_after_parse);
-
-		$old_action = $action;
-		$action = 'read_smb_spool';
+		Log::set_action('read_smb_spool');
 
 		// If we have enough queued tasks (90% of $max_queued_tasks), let's not parse the log at this time, and get some work done.
 		// Once we fall below that, we'll queue up to at most $max_queued_tasks new tasks, then get back to work.
 		// This will effectively 'batch' large file operations to make sure the DB doesn't become a problem because of the number of rows,
 		//   and this will allow the end-user to see real activity, other that new rows in greyhole.tasks...
 		$query = "SELECT COUNT(*) num_rows FROM tasks";
-		$result = db_query($query) or gh_log(CRITICAL, "Can't get tasks count: " . db_error());
+		$result = db_query($query) or Log::log(CRITICAL, "Can't get tasks count: " . db_error());
 		$row = db_fetch_object($result);
 		db_free_result($result);
 		$num_rows = (int) $row->num_rows;
 		if ($num_rows >= ($max_queued_tasks * 0.9)) {
-			$action = $old_action;
+			Log::restore_previous_action();
 			if (time() % 10 == 0) {
-				gh_log(DEBUG, "  More than " . ($max_queued_tasks * 0.9) . " tasks queued... Won't queue any more at this time.");
+				Log::log(DEBUG, "  More than " . ($max_queued_tasks * 0.9) . " tasks queued... Won't queue any more at this time.");
 			}
 			return;
 		}
@@ -113,7 +111,7 @@ class SambaHelper {
 			}
 
 			if ($last_line === FALSE) {
-				gh_log(DEBUG, "Processing Samba spool...");
+				Log::log(DEBUG, "Processing Samba spool...");
 			}
 
 			foreach ($files as $filename) {
@@ -139,7 +137,7 @@ class SambaHelper {
 						db_escape_string($share),
 						$fd
 					);
-					db_query($query) or gh_log(CRITICAL, "Error updating tasks (1): " . db_error() . "; Query: $query");
+					db_query($query) or Log::log(CRITICAL, "Error updating tasks (1): " . db_error() . "; Query: $query");
 				}
 
 				$line = $line_ar;
@@ -151,7 +149,7 @@ class SambaHelper {
 				}
 				$result = array_pop($line);
 				if (mb_strpos($result, 'failed') === 0) {
-					gh_log(DEBUG, "Failed $act in $share/$line[0]. Skipping.");
+					Log::log(DEBUG, "Failed $act in $share/$line[0]. Skipping.");
 					continue;
 				}
 				unset($fullpath);
@@ -195,12 +193,12 @@ class SambaHelper {
 						isset($fullpath_target) ? "'".db_escape_string(clean_dir($fullpath_target))."'" : (isset($fd) ? "'$fd'" : 'NULL'),
 						$act == 'write' ? 'no' : 'yes'
 					);
-					db_query($query) or gh_log(CRITICAL, "Error inserting task: " . db_error() . "; Query: $query");
+					db_query($query) or Log::log(CRITICAL, "Error inserting task: " . db_error() . "; Query: $query");
 				}
 
 				// If we have enough queued tasks ($max_queued_tasks), let's stop parsing the log, and get some work done.
 				if ($num_rows+$new_tasks >= $max_queued_tasks) {
-					gh_log(DEBUG, "  We now have more than $max_queued_tasks tasks queued... Will stop parsing for now.");
+					Log::log(DEBUG, "  We now have more than $max_queued_tasks tasks queued... Will stop parsing for now.");
 					break;
 				}
 			}
@@ -216,15 +214,15 @@ class SambaHelper {
 				db_escape_string($share),
 				$fd
 			);
-			db_query($query) or gh_log(CRITICAL, "Error updating tasks (2): " . db_error() . "; Query: $query");
+			db_query($query) or Log::log(CRITICAL, "Error updating tasks (2): " . db_error() . "; Query: $query");
 		}
 
 		if ($new_tasks > 0) {
-			gh_log(DEBUG, "Found $new_tasks new tasks in spool.");
+			Log::log(DEBUG, "Found $new_tasks new tasks in spool.");
 
 			if ($simplify_after_parse) {
 				$query = "SELECT COUNT(*) num_rows FROM tasks";
-				$result = db_query($query) or gh_log(CRITICAL, "Can't get tasks count: " . db_error());
+				$result = db_query($query) or Log::log(CRITICAL, "Can't get tasks count: " . db_error());
 				$row = db_fetch_object($result);
 				db_free_result($result);
 				$num_rows = (int) $row->num_rows;
@@ -236,7 +234,7 @@ class SambaHelper {
 			}
 		}
 
-		$action = $old_action;
+		Log::restore_previous_action();
 	}
 }
 ?>

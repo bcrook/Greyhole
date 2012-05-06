@@ -106,8 +106,7 @@ class CommandLineHelper {
 			exit(0);
 		}
 		
-		global $action;
-		$action = str_replace(':', '', $this->actionCmd->getOpt());
+		Log::set_action(str_replace(':', '', $this->actionCmd->getOpt()));
 		
 		if ($this->actionCmd->getOpt() == 'md5-worker') {
 			$cliRunner = new MD5WorkerCliRunner($this->options);
@@ -115,10 +114,16 @@ class CommandLineHelper {
 		
 		//Config::read();
 		process_config();
+		
+		global $db_options, $DB;
+		if ($db_options->engine == 'sqlite') {
+			$DB = new DatabaseHelperSQLite($db_options);
+		} else {
+			$DB = new DatabaseHelperMySQL($db_options);
+		}
 
-		//Database::init(Config::getDatabaseConfig());
-		db_connect() or gh_log(CRITICAL, "Can't connect to $db_options->engine database.");
-		db_migrate();
+		//$DB->connect(Config::getDatabaseConfig());
+		$DB->connect() or Log::log(CRITICAL, "Can't connect to $db_options->engine database.");
 		
 		if (!isset($cliRunner)) {
 			$cliRunner = $this->actionCmd->getNewRunner($this->options);

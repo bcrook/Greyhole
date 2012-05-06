@@ -20,6 +20,9 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 
 abstract class AbstractRunner {
 	
+	function __construct() {
+	}
+
 	abstract public function run();
 	
 	// Most commands can be executed only by root.

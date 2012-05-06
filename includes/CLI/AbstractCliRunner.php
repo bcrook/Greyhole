@@ -23,6 +23,7 @@ abstract class AbstractCliRunner extends AbstractRunner {
 	protected $options;
 
 	function __construct($options) {
+		parent::__construct();
 		$this->options = $options;
 	}
 

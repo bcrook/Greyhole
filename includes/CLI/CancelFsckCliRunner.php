@@ -20,8 +20,8 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 
 class CancelFsckCliRunner extends AbstractCliRunner {
 	public function run() {
-		db_query("DELETE FROM tasks WHERE action = 'fsck'") or gh_log(CRITICAL, "Can't delete fsck tasks: " . db_error());
-		db_query("DELETE FROM tasks WHERE action = 'md5'") or gh_log(CRITICAL, "Can't delete md5 tasks: " . db_error());
+		db_query("DELETE FROM tasks WHERE action = 'fsck'") or Log::log(CRITICAL, "Can't delete fsck tasks: " . db_error());
+		db_query("DELETE FROM tasks WHERE action = 'md5'") or Log::log(CRITICAL, "Can't delete md5 tasks: " . db_error());
 		$this->log("All scheduled fsck tasks have now been deleted.");
 		$this->log("Specific files checks might have been queued for problematic files, and those (fsck_file) tasks will still be executed, once other tasks have been processed.");
 		$this->restart_service();

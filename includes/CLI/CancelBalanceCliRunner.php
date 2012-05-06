@@ -20,7 +20,7 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 
 class CancelBalanceCliRunner extends AbstractCliRunner {
 	public function run() {
-		db_query("DELETE FROM tasks WHERE action = 'balance'") or gh_log(CRITICAL, "Can't delete balance tasks: " . db_error());
+		db_query("DELETE FROM tasks WHERE action = 'balance'") or Log::log(CRITICAL, "Can't delete balance tasks: " . db_error());
 		$this->log("All scheduled balance tasks have now been deleted.");
 		$this->restart_service();
 	}

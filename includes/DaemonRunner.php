@@ -21,19 +21,20 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 abstract class DaemonRunner extends AbstractRunner {
 	
 	public function run() {
+		// Prevent multiple daemons from running simultaneously
 		$num_daemon_processes = exec('ps ax | grep ".*/php .*/greyhole --daemon" | grep -v grep | wc -l');
 		if ($num_daemon_processes > 1) {
 			die("Found an already running Greyhole daemon with PID " . trim(file_get_contents('/var/run/greyhole.pid')) . ".\nCan't start multiple Greyhole daemons.\nQuitting.\n");
 		}
 
-		gh_log(INFO, "Greyhole (version %VERSION%) daemon started.");
+		Log::log(INFO, "Greyhole (version %VERSION%) daemon started.");
 		$this->initialize();
 		while (TRUE) {
 			// Process the spool directory, and insert each task found there into the database.
 			SambaHelper::process_spool();
 
 			// Check that storage pool drives are OK (using their UUID, or .greyhole_uses_this files)
-			$action = 'check_pool';
+			Log::set_action('check_pool');
 			check_storage_pool_drives();
 
 			// Execute the next tasks from the tasks queue ('tasks' table in the database)
@@ -43,20 +44,23 @@ abstract class DaemonRunner extends AbstractRunner {
 
 	public function finish($returnValue = 0) {
 		// The daemon should never finish; it will be killed by the init script.
+		// Not that it can reach finish() anyway, since it's in an infinite while(TRUE) loop in run()... :)
 	}
 	
 	private function initialize() {
+		global $DB;
+		
 		// Check the database tables, and repair them if needed.
-		repair_tables();
+		$DB->repair_tables();
 		
 		// Creates a GUID (if one doesn't exist); will be used to uniquely identify this client when reporting usage to greyhole.net
 		GetGUIDCliRunner::setUniqID();
 		
 		// Terminology changed (attic > trash, graveyard > metadata store, tombstones > metadata files); this requires filesystem & database changes.
-		$this->terminology_conversion();
+		self::terminology_conversion();
 		
 		// For files which don't have extra copies, we at least create a copy of the metadata on a separate drive, in order to be able to identify the missing files if a hard drive fails.
-		set_metastore_backup();
+		Settings::set_metastore_backup();
 
 		// We backup the database settings to disk, in order to be able to restore them if the database is lost.
 		Settings::backup();
@@ -71,27 +75,27 @@ abstract class DaemonRunner extends AbstractRunner {
 		simplify_tasks();
 	}
 
-	private function terminology_conversion() {
-		$this->convert_folders('.gh_graveyard','.gh_metastore');
-		$this->convert_folders('.gh_graveyard_backup','.gh_metastore_backup');
-		$this->convert_folders('.gh_attic','.gh_trash');
-		$this->convert_database();
-		$this->convert_sp_drives_tag_files();
+	private static function terminology_conversion() {
+		self::convert_folders('.gh_graveyard','.gh_metastore');
+		self::convert_folders('.gh_graveyard_backup','.gh_metastore_backup');
+		self::convert_folders('.gh_attic','.gh_trash');
+		self::convert_database();
+		self::convert_sp_drives_tag_files();
 	}
 
-	private function convert_folders($old, $new) {
+	private static function convert_folders($old, $new) {
 		global $storage_pool_drives;
 		foreach ($storage_pool_drives as $sp_drive) {
 			$old_term = clean_dir("$sp_drive/$old");
 			$new_term = clean_dir("$sp_drive/$new");
 			if (file_exists($old_term)) {
-				gh_log(INFO, "Moving $old_term to $new_term...");
+				Log::log(INFO, "Moving $old_term to $new_term...");
 				gh_rename($old_term, $new_term);
 			}
 		}
 	}
 
-	private function convert_database() {
+	private static function convert_database() {
 		Settings::rename('graveyard_backup_directory', 'metastore_backup_directory');
 		$setting = Settings::get('metastore_backup_directory', FALSE, '%graveyard%');
 		if ($setting) {
@@ -100,7 +104,7 @@ abstract class DaemonRunner extends AbstractRunner {
 		}
 	}
 
-	private function convert_sp_drives_tag_files() {
+	private static function convert_sp_drives_tag_files() {
 		global $storage_pool_drives, $going_drive, $allow_multiple_sp_per_device;
 
 		$drives_definitions = Settings::get('sp_drives_definitions', TRUE);
@@ -125,7 +129,7 @@ abstract class DaemonRunner extends AbstractRunner {
 				unlink("$sp_drive/.greyhole_uses_this");
 			}
 			if ($drives_definitions[$sp_drive] != gh_dir_uuid($sp_drive)) {
-				gh_log(WARN, "Warning! It seems the partition UUID of $sp_drive changed. This probably means this mount is currently unmounted, or that you replaced this drive and didn't use 'greyhole --replace'. Because of that, Greyhole will NOT use this drive at this time.");
+				Log::log(WARN, "Warning! It seems the partition UUID of $sp_drive changed. This probably means this mount is currently unmounted, or that you replaced this drive and didn't use 'greyhole --replace'. Because of that, Greyhole will NOT use this drive at this time.");
 			}
 		}
 		foreach ($drives_definitions as $sp_drive => $uuid) {
@@ -142,9 +146,9 @@ abstract class DaemonRunner extends AbstractRunner {
 		foreach ($devices as $device_id => $sp_drives) {
 			if (count($sp_drives) > 1 && $device_id !== 0) {
 				if ($allow_multiple_sp_per_device) {
-					gh_log(INFO, "The following storage pool drives are on the same partition: " . implode(", ", $sp_drives) . ", but per greyhole.conf 'allow_multiple_sp_per_device' options, you chose to ignore this normally critical error.");
+					Log::log(INFO, "The following storage pool drives are on the same partition: " . implode(", ", $sp_drives) . ", but per greyhole.conf 'allow_multiple_sp_per_device' options, you chose to ignore this normally critical error.");
 				} else {
-					gh_log(CRITICAL, "ERROR: The following storage pool drives are on the same partition: " . implode(", ", $sp_drives) . ". The Greyhole daemon will now stop.");
+					Log::log(CRITICAL, "ERROR: The following storage pool drives are on the same partition: " . implode(", ", $sp_drives) . ". The Greyhole daemon will now stop.");
 				}
 			}
 		}

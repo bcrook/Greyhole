@@ -68,7 +68,7 @@ class FsckCliRunner extends AbstractCliRunner {
 				db_escape_string($this->dir),
 				(!empty($this->fsck_options) ? "'" . implode('|', $this->fsck_options) . "'" : "NULL")
 			);
-			db_query($query) or gh_log(CRITICAL, "Can't insert fsck task: " . db_error());
+			db_query($query) or Log::log(CRITICAL, "Can't insert fsck task: " . db_error());
 		}
 		$this->log("fsck of $this->dir has been scheduled. It will start after all currently pending tasks have been completed.");
 		if (isset($this->options['checksums'])) {
