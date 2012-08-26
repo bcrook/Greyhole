@@ -43,7 +43,53 @@ class MD5WorkerCliRunner extends AbstractCliRunner {
 	}
 	
 	public function run() {
-		md5_worker_thread($this->drives);
+    	$drives_clause = '';
+    	foreach ($this->drives as $drive) {
+    		if ($drives_clause != '') {
+    			$drives_clause .= ' OR ';
+    		}
+    		$drives_clause .= sprintf("additional_info LIKE '%s%%'", DB::escape_string($drive));
+    	}
+
+    	$query = "SELECT id, share, full_path, additional_info FROM tasks WHERE action = 'md5' AND complete = 'no' AND ($drives_clause) ORDER BY id ASC LIMIT 10";
+
+    	$last_check_time = time();
+    	while (TRUE) {
+    		$task = FALSE;
+    		if (!empty($result_new_tasks)) {
+    			$task = DB::fetch_object($result_new_tasks);
+    			if ($task === FALSE) {
+    				DB::free_result($result_new_tasks);
+    				$result_new_tasks = null;
+    			}
+    		}
+    		if ($task === FALSE) {
+    			$result_new_tasks = DB::query($query) or Log::log(CRITICAL, "Can't query md5 tasks: " . DB::error() . "$query");
+    			$task = DB::fetch_object($result_new_tasks);
+    		}
+    		if ($task === FALSE) {
+    			// Nothing new to process
+
+    			// Stop this thread once we have nothing more to do, and fsck completed.
+    			$task = Task::getNext();
+    			if ($task === FALSE || ($task->action != 'fsck' && $task->action != 'fsck_file')) {
+    				Log::log(DEBUG, "MD5 worker thread for " . implode(', ', $this->drives) . " will now exit; it has nothing more to do.");
+    				#Log::log(DEBUG, "Current task: " . var_export($task, TRUE));
+    				break;
+    			}
+
+    			sleep(5);
+    			continue;
+    		}
+    		$last_check_time = time();
+
+    		Log::log(INFO, "Working on MD5 task ID $task->id: $task->additional_info");
+    		$md5 = md5_file($task->additional_info);
+    		Log::log(DEBUG, "  MD5 for $task->additional_info = $md5");
+
+    		$update_query = sprintf("UPDATE tasks SET complete = 'yes', additional_info = '%s' WHERE id = $task->id", DB::escape_string("$task->additional_info=$md5"));
+    		DB::query($update_query) or Log::log(CRITICAL, "Can't update md5 task: " . DB::error());
+    	}
 	}
 }
 

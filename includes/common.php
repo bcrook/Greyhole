@@ -95,7 +95,7 @@ function recursive_include_parser($file) {
 }
 
 function parse_config() {
-	global $_CONSTANTS, $log_level, $storage_pool_drives, $shares_options, $minimum_free_space_pool_drives, $df_command, $config_file, $sticky_files, $db_options, $frozen_directories, $trash_share_names, $max_queued_tasks, $memory_limit, $delete_moves_to_trash, $greyhole_log_file, $email_to, $log_memory_usage, $check_for_open_files, $allow_multiple_sp_per_device, $df_cache_time;
+	global $_CONSTANTS, $storage_pool_drives, $shares_options, $minimum_free_space_pool_drives, $df_command, $config_file, $sticky_files, $db_options, $frozen_directories, $trash_share_names, $max_queued_tasks, $memory_limit, $delete_moves_to_trash, $greyhole_log_file, $email_to, $log_memory_usage, $check_for_open_files, $allow_multiple_sp_per_device, $df_cache_time;
 
 	$deprecated_options = array(
 		'delete_moves_to_attic' => 'delete_moves_to_trash',
@@ -111,7 +111,7 @@ function parse_config() {
 	$config_text = recursive_include_parser($config_file);
 	
 	// Defaults
-	$log_level = DEBUG;
+	Log::$level = DEBUG;
 	$greyhole_log_file = '/var/log/greyhole.log';
 	$email_to = 'root';
 	$log_memory_usage = FALSE;
@@ -141,7 +141,7 @@ function parse_config() {
 			$parsing_drive_selection_groups = FALSE;
 			switch($name) {
 				case 'log_level':
-					$log_level = $_CONSTANTS[$value];
+					Log::$level = $_CONSTANTS[$value];
 					break;
 				case 'delete_moves_to_trash': // or delete_moves_to_attic
 				case 'log_memory_usage':
@@ -774,7 +774,7 @@ class DriveSelection {
                 break;
             }
             list($sp_drive, $space) = $arr;
-			if (!is_greyhole_owned_drive($sp_drive)) { continue; }
+			if (!StoragePoolHelper::is_drive_ok($sp_drive)) { continue; }
             $drives[$sp_drive] = $space;
         }
         while (count($drives)+count($drives_last_resort)<$this->num_drives_per_draft) {
@@ -783,7 +783,7 @@ class DriveSelection {
                 break;
             }
             list($sp_drive, $space) = $arr;
-			if (!is_greyhole_owned_drive($sp_drive)) { continue; }
+			if (!StoragePoolHelper::is_drive_ok($sp_drive)) { continue; }
             $drives_last_resort[$sp_drive] = $space;
         }
         
@@ -826,40 +826,6 @@ class DriveSelection {
             $this->drives = $storage_pool_drives;
         }
     }
-}
-
-$greyhole_owned_drives = array();
-function is_greyhole_owned_drive($sp_drive) {
-	global $going_drive, $df_cache_time, $greyhole_owned_drives;
-	if (isset($going_drive) && $sp_drive == $going_drive) {
-		return FALSE;
-	}
-	$is_greyhole_owned_drive = isset($greyhole_owned_drives[$sp_drive]);
-	if ($is_greyhole_owned_drive && $greyhole_owned_drives[$sp_drive] < time() - $df_cache_time) {
-		unset($greyhole_owned_drives[$sp_drive]);
-		$is_greyhole_owned_drive = FALSE;
-	}
-	if (!$is_greyhole_owned_drive) {
-		$drives_definitions = Settings::get('sp_drives_definitions', TRUE);
-		if (!$drives_definitions) {
-			$drives_definitions = convert_sp_drives_tag_files();
-		}
-		$drive_uuid = gh_dir_uuid($sp_drive);
-		$is_greyhole_owned_drive = @$drives_definitions[$sp_drive] === $drive_uuid && $drive_uuid !== FALSE;
-		if (!$is_greyhole_owned_drive) {
-			// Maybe this is a remote mount? Those don't have UUIDs, so we use the .greyhole_uses_this technique.
-			$is_greyhole_owned_drive = file_exists("$sp_drive/.greyhole_uses_this");
-			if ($is_greyhole_owned_drive && isset($drives_definitions[$sp_drive])) {
-				// This remote drive was listed in MySQL; it shouldn't be. Let's remove it.
-				unset($drives_definitions[$sp_drive]);
-				Settings::set('sp_drives_definitions', $drives_definitions);
-			}
-		}
-		if ($is_greyhole_owned_drive) {
-			$greyhole_owned_drives[$sp_drive] = time();
-		}
-	}
-	return $is_greyhole_owned_drive;
 }
 
 // Is it OK for a drive to be gone?
@@ -936,114 +902,6 @@ function mark_gone_drive_fscked($sp_drive, $action='add') {
 	}
 
 	Settings::set('Gone-FSCKed-Drives', $fscked_gone_drives);
-}
-
-function check_storage_pool_drives($skip_fsck=FALSE) {
-	global $storage_pool_drives, $email_to, $gone_ok_drives;
-	$needs_fsck = FALSE;
-	$returned_drives = array();
-	$missing_drives = array();
-	$i = 0; $j = 0;
-	foreach ($storage_pool_drives as $sp_drive) {
-		if (!is_greyhole_owned_drive($sp_drive) && !gone_fscked($sp_drive, $i++ == 0) && !file_exists("$sp_drive/.greyhole_used_this")) {
-			if($needs_fsck !== 2){	
-				$needs_fsck = 1;
-			}
-			mark_gone_drive_fscked($sp_drive);
-			$missing_drives[] = $sp_drive;
-			Log::log(WARN, "Warning! It seems the partition UUID of $sp_drive changed. This probably means this mount is currently unmounted, or that you replaced this drive and didn't use 'greyhole --replace'. Because of that, Greyhole will NOT use this drive at this time.");
-			Log::log(DEBUG, "Email sent for gone drive: $sp_drive");
-			$gone_ok_drives[$sp_drive] = TRUE; // The upcoming fsck should not recreate missing copies just yet
-		} else if ((gone_ok($sp_drive, $j++ == 0) || gone_fscked($sp_drive, $i++ == 0)) && is_greyhole_owned_drive($sp_drive)) {
-			// $sp_drive is now back
-			$needs_fsck = 2;
-			$returned_drives[] = $sp_drive;
-			Log::log(DEBUG, "Email sent for revived drive: $sp_drive");
-
-			mark_gone_ok($sp_drive, 'remove');
-			mark_gone_drive_fscked($sp_drive, 'remove');
-			$i = 0; $j = 0;
-		}
-	}
-	if(count($returned_drives) > 0) {
-		$body = "This is an automated email from Greyhole.\n\nOne (or more) of your storage pool drives came back:\n";
-		foreach ($returned_drives as $sp_drive) {
-  			$body .= "$sp_drive was missing; it's now available again.\n";
-		}
-		if (!$skip_fsck) {
-			$body .= "\nA fsck will now start, to fix the symlinks found in your shares, when possible.\nYou'll receive a report email once that fsck run completes.\n";
-		}
-		$drive_string = join(", ", $returned_drives);
-		$subject = "Storage pool drive now online on " . exec ('hostname') . ": ";
-		$subject = $subject . $drive_string;
-		if (strlen($subject) > 255) {
-			$subject = substr($subject, 0, 255);
-		}
-		mail($email_to, $subject, $body);
-	}
-	if(count($missing_drives) > 0) {
-		$body = "This is an automated email from Greyhole.\n\nOne (or more) of your storage pool drives has disappeared:\n";
-
-		$drives_definitions = Settings::get('sp_drives_definitions', TRUE);
-		foreach ($missing_drives as $sp_drive) {
-			if (!is_dir($sp_drive)) {
-	  			$body .= "$sp_drive: directory doesn't exists\n";
-			} else {
-				$current_uuid = gh_dir_uuid($sp_drive);
-				if (empty($current_uuid)) {
-					$current_uuid = 'N/A';
-				}
-				$body .= "$sp_drive: expected partition UUID: " . $drives_definitions[$sp_drive] . "; current partition UUID: $current_uuid\n";
-			}
-		}
-		$sp_drive = $missing_drives[0];
-		$body .= "\nThis either means this mount is currently unmounted, or you forgot to use 'greyhole --replace' when you changed this drive.\n\n";
-		$body .= "Here are your options:\n\n";
-		$body .= "- If you forgot to use 'greyhole --replace', you should do so now. Until you do, this drive will not be part of your storage pool.\n\n";
-		$body .= "- If the drive is gone, you should either re-mount it manually (if possible), or remove it from your storage pool. To do so, use the following command:\n  greyhole --gone=" . escapeshellarg($sp_drive) . "\n  Note that the above command is REQUIRED for Greyhole to re-create missing file copies before the next fsck runs. Until either happens, missing file copies WILL NOT be re-created on other drives.\n\n";
-		$body .= "- If you know this drive will come back soon, and do NOT want Greyhole to re-create missing file copies for this drive until it reappears, you should execute this command:\n  greyhole --wait-for=" . escapeshellarg($sp_drive) . "\n\n";
-		if (!$skip_fsck) {
-			$body .= "A fsck will now start, to fix the symlinks found in your shares, when possible.\nYou'll receive a report email once that fsck run completes.\n";
-		}
-		$subject = "Missing storage pool drives on " . exec('hostname') . ": ";
-		$drive_string = join(",",$missing_drives);
-		$subject = $subject . $drive_string;
-		if (strlen($subject) > 255) {
-			$subject = substr($subject, 0, 255);
-		}
-		mail($email_to, $subject, $body);
-	}
-	if ($needs_fsck !== FALSE) {
-		Settings::set_metastore_backup();
-		get_metastores(FALSE); // FALSE => Resets the metastores cache
-		clearstatcache();
-
-		if (!$skip_fsck) {
-			global $shares_options;
-			initialize_fsck_report('All shares');
-			if($needs_fsck === 2) {
-				foreach ($returned_drives as $drive) {
-					$metastores = get_metastores_from_storage_volume($drive);
-					Log::log(INFO, "Starting fsck for metadata store on $drive which came back online.");
-					foreach($metastores as $metastore) {
-						foreach($shares_options as $share_name => $share_options) {
-							gh_fsck_metastore($metastore,"/$share_name", $share_name);
-						}
-					}
-					Log::log(INFO, "fsck for returning drive $drive's metadata store completed.");
-				}
-				Log::log(INFO, "Starting fsck for all shares - caused by missing drive that came back online.");
-			}else{
-				Log::log(INFO, "Starting fsck for all shares - caused by missing drive. Will just recreate symlinks to existing copies when possible; won't create new copies just yet.");
-				fix_all_symlinks();
-			}
-			schedule_fsck_all_shares(array('email'));
-			Log::log(INFO, "  fsck for all shares scheduled.");
-		}
-
-		// Refresh $gone_ok_drives to it's real value (from the DB)
-		get_gone_ok_drives();
-	}
 }
 
 class FSCKLogFile {
@@ -1149,7 +1007,7 @@ function fix_symlinks_on_share($share_name) {
 		if (is_link($file_to_relink)) {
 			$file_to_relink = substr($file_to_relink, 2);
 			foreach ($storage_pool_drives as $sp_drive) {
-				if (!is_greyhole_owned_drive($sp_drive)) { continue; }
+				if (!StoragePoolHelper::is_drive_ok($sp_drive)) { continue; }
 				$new_link_target = clean_dir("$sp_drive/$share_name/$file_to_relink");
 				if (gh_is_file($new_link_target)) {
 					unlink($file_to_relink);
@@ -1168,10 +1026,10 @@ function schedule_fsck_all_shares($fsck_options=array()) {
 	foreach ($shares_options as $share_name => $share_options) {
 		$full_path = $share_options['landing_zone'];
 		$query = sprintf("INSERT INTO tasks (action, share, additional_info, complete) VALUES ('fsck', '%s', %s, 'yes')",
-			db_escape_string($full_path),
+			DB::escape_string($full_path),
 			(!empty($fsck_options) ? "'" . implode('|', $fsck_options) . "'" : "NULL")
 		);
-		db_query($query) or Log::log(CRITICAL, "Can't insert fsck task: " . db_error());
+		DB::query($query) or Log::log(CRITICAL, "Can't insert fsck task: " . DB::error());
 	}
 }
 ?>

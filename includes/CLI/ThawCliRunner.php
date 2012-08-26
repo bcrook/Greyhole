@@ -51,10 +51,10 @@ class ThawCliRunner extends AbstractCliRunner {
 		$path = explode('/', $this->dir);
 		$share = array_shift($path);
 		$query = sprintf("UPDATE tasks SET complete = 'thawed' WHERE complete = 'frozen' AND share = '%s' AND full_path LIKE '%s%%'",
-			db_escape_string($share),
-			db_escape_string(implode('/', $path))
+			DB::escape_string($share),
+			DB::escape_string(implode('/', $path))
 		);
-		db_query($query) or die("Can't thaw tasks with query: $query - Error: " . db_error());
+		DB::query($query) or die("Can't thaw tasks with query: $query - Error: " . DB::error());
 		$this->log("$this->dir directory has been thawed.");
 		$this->log("All pasts file operations that occured in this directory will now be processed by Greyhole.");
 	}

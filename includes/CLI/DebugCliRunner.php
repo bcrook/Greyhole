@@ -38,30 +38,30 @@ class DebugCliRunner extends AbstractAnonymousCliRunner {
 		$this->log("=======");
 		$debug_tasks = array();
 		$query = sprintf("SELECT id, action, share, full_path, additional_info, event_date FROM tasks_completed WHERE full_path LIKE '%%%s%%' ORDER BY id ASC",
-			db_escape_string($filename)
+			DB::escape_string($filename)
 		);
-		$result = db_query($query) or die("Can't query tasks_completed with query: $query - Error: " . db_error());
-		while ($row = db_fetch_object($result)) {
+		$result = DB::query($query) or die("Can't query tasks_completed with query: $query - Error: " . DB::error());
+		while ($row = DB::fetch_object($result)) {
 			$debug_tasks[$row->id] = $row;
 		}
 
 		// Renames
 		$query = sprintf("SELECT id, action, share, full_path, additional_info, event_date FROM tasks_completed WHERE additional_info LIKE '%%%s%%' ORDER BY id ASC",
-			db_escape_string($filename)
+			DB::escape_string($filename)
 		);
 		while (TRUE) {
-			$result = db_query($query) or die("Can't query tasks_completed for renames with query: $query - Error: " . db_error());
-			while ($row = db_fetch_object($result)) {
+			$result = DB::query($query) or die("Can't query tasks_completed for renames with query: $query - Error: " . DB::error());
+			while ($row = DB::fetch_object($result)) {
 				$debug_tasks[$row->id] = $row;
 				$query = sprintf("SELECT id, action, share, full_path, additional_info, event_date FROM tasks_completed WHERE additional_info = '%s' ORDER BY id ASC",
-					db_escape_string($row->full_path)
+					DB::escape_string($row->full_path)
 				);
 			}
 
 			# Is there more?
 			$new_query = preg_replace('/SELECT .* FROM/i', 'SELECT COUNT(*) FROM', $query);
-			$result = db_query($new_query) or die("Can't query tasks_completed for COUNT of renames with query: $new_query - Error: " . db_error());
-			if (db_fetch_object($result) !== FALSE) {
+			$result = DB::query($new_query) or die("Can't query tasks_completed for COUNT of renames with query: $new_query - Error: " . DB::error());
+			if (DB::fetch_object($result) !== FALSE) {
 				break;
 			}
 		}

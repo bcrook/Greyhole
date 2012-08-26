@@ -87,9 +87,9 @@ class SambaHelper {
 		// This will effectively 'batch' large file operations to make sure the DB doesn't become a problem because of the number of rows,
 		//   and this will allow the end-user to see real activity, other that new rows in greyhole.tasks...
 		$query = "SELECT COUNT(*) num_rows FROM tasks";
-		$result = db_query($query) or Log::log(CRITICAL, "Can't get tasks count: " . db_error());
-		$row = db_fetch_object($result);
-		db_free_result($result);
+		$result = DB::query($query) or Log::log(CRITICAL, "Can't get tasks count: " . DB::error());
+		$row = DB::fetch_object($result);
+		DB::free_result($result);
 		$num_rows = (int) $row->num_rows;
 		if ($num_rows >= ($max_queued_tasks * 0.9)) {
 			Log::restore_previous_action();
@@ -134,10 +134,10 @@ class SambaHelper {
 				// Close logs are only processed when no more duplicates are found, so we'll execute this now that a non-duplicate line was found.
 				if ($act === 'close') {
 					$query = sprintf("UPDATE tasks SET additional_info = NULL, complete = 'yes' WHERE complete = 'no' AND share = '%s' AND additional_info = '%s'",
-						db_escape_string($share),
+						DB::escape_string($share),
 						$fd
 					);
-					db_query($query) or Log::log(CRITICAL, "Error updating tasks (1): " . db_error() . "; Query: $query");
+					DB::query($query) or Log::log(CRITICAL, "Error updating tasks (1): " . DB::error() . "; Query: $query");
 				}
 
 				$line = $line_ar;
@@ -188,12 +188,12 @@ class SambaHelper {
 					$new_tasks++;
 					$query = sprintf("INSERT INTO tasks (action, share, full_path, additional_info, complete) VALUES ('%s', '%s', %s, %s, '%s')",
 						$act,
-						db_escape_string($share),
-						isset($fullpath) ? "'".db_escape_string(clean_dir($fullpath))."'" : 'NULL',
-						isset($fullpath_target) ? "'".db_escape_string(clean_dir($fullpath_target))."'" : (isset($fd) ? "'$fd'" : 'NULL'),
+						DB::escape_string($share),
+						isset($fullpath) ? "'".DB::escape_string(clean_dir($fullpath))."'" : 'NULL',
+						isset($fullpath_target) ? "'".DB::escape_string(clean_dir($fullpath_target))."'" : (isset($fd) ? "'$fd'" : 'NULL'),
 						$act == 'write' ? 'no' : 'yes'
 					);
-					db_query($query) or Log::log(CRITICAL, "Error inserting task: " . db_error() . "; Query: $query");
+					DB::query($query) or Log::log(CRITICAL, "Error inserting task: " . DB::error() . "; Query: $query");
 				}
 
 				// If we have enough queued tasks ($max_queued_tasks), let's stop parsing the log, and get some work done.
@@ -211,10 +211,10 @@ class SambaHelper {
 		// Close logs are only processed when no more duplicates are found, so we'll execute this now that we're done parsing the current log.
 		if ($act == 'close') {
 			$query = sprintf("UPDATE tasks SET additional_info = NULL, complete = 'yes' WHERE complete = 'no' AND share = '%s' AND additional_info = '%s'",
-				db_escape_string($share),
+				DB::escape_string($share),
 				$fd
 			);
-			db_query($query) or Log::log(CRITICAL, "Error updating tasks (2): " . db_error() . "; Query: $query");
+			DB::query($query) or Log::log(CRITICAL, "Error updating tasks (2): " . DB::error() . "; Query: $query");
 		}
 
 		if ($new_tasks > 0) {
@@ -222,13 +222,13 @@ class SambaHelper {
 
 			if ($simplify_after_parse) {
 				$query = "SELECT COUNT(*) num_rows FROM tasks";
-				$result = db_query($query) or Log::log(CRITICAL, "Can't get tasks count: " . db_error());
-				$row = db_fetch_object($result);
-				db_free_result($result);
+				$result = DB::query($query) or Log::log(CRITICAL, "Can't get tasks count: " . DB::error());
+				$row = DB::fetch_object($result);
+				DB::free_result($result);
 				$num_rows = (int) $row->num_rows;
 				if ($num_rows < 1000 || $num_rows % 5 == 0) { // Runs 1/5 of the times when num_rows > 1000
 					if ($num_rows < 5000 || $num_rows % 100 == 0) { // Runs 1/100 of the times when num_rows > 5000
-						simplify_tasks();
+						Task::simplify();
 					}
 				}
 			}

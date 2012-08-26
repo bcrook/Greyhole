@@ -21,7 +21,7 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 class BalanceCliRunner extends AbstractCliRunner {
 	public function run() {
 		$query = "INSERT INTO tasks (action, share, complete) VALUES ('balance', '', 'yes')";
-		db_query($query) or Log::log(CRITICAL, "Can't insert balance task: " . db_error());
+		DB::query($query) or Log::log(CRITICAL, "Can't insert balance task: " . DB::error());
 		$this->log("A balance has been scheduled. It will start after all currently pending tasks have been completed.");
 		$this->log("This operation will try to even the available space on all drives included in your storage pool.");
 	}

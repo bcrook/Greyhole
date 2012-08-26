@@ -30,7 +30,7 @@ class StatusCliRunner extends AbstractAnonymousCliRunner {
 			$this->finish(1);
 		}
 
-		$task = get_next_task($temp_rs, TRUE);
+		$task = Task::getNext(INCL_MD5);
 		if ($task === FALSE) {
 			$this->log("");
 			$this->log("Currently idle.");

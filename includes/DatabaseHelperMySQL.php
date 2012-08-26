@@ -22,17 +22,20 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
    Small abstraction layer for supporting MySQL and SQLite based
    on a user choice. Specify
 
-             db_engine = sqlite
-             db_path = /var/cache/greyhole.sqlite
+        db_engine = mysql
+        db_host = localhost
+        db_user = greyhole_user
+        db_pass = 89y63jdwe
+        db_name = greyhole
 
-   in /etc/greyhole.conf to enable sqlite support, otherwise the
-   standard Greyhole MySQL support will be used.
+   in /etc/greyhole.conf to enable MySQL support.
 
    Carlos Puchol, Amahi
    cpg+git@amahi.org
 */
 
 class DatabaseHelperMySQL {
+    public const engine = 'mysql';
 
 	public function connect() {
 		$this->dbh = mysql_connect($this->options->host, $this->options->user, $this->options->pass);
@@ -79,13 +82,13 @@ class DatabaseHelperMySQL {
 		if (Log::action_equals('daemon')) {
 			Log::log(INFO, "Optimizing MySQL tables...");
 		}
-		db_query("REPAIR TABLE tasks") or Log::log(CRITICAL, "Can't repair tasks table: " . db_error());
-		db_query("REPAIR TABLE settings") or Log::log(CRITICAL, "Can't repair settings table: " . db_error());
+		DB::query("REPAIR TABLE tasks") or Log::log(CRITICAL, "Can't repair tasks table: " . DB::error());
+		DB::query("REPAIR TABLE settings") or Log::log(CRITICAL, "Can't repair settings table: " . DB::error());
 		// Let's repair tasks_completed only if it's broken!
-		$result = db_query("SELECT * FROM tasks_completed LIMIT 1");
+		$result = DB::query("SELECT * FROM tasks_completed LIMIT 1");
 		if ($result === FALSE) {
 			Log::log(INFO, "Repairing MySQL tables...");
-			db_query("REPAIR TABLE tasks_completed") or Log::log(CRITICAL, "Can't repair tasks_completed table: " . db_error());
+			DB::query("REPAIR TABLE tasks_completed") or Log::log(CRITICAL, "Can't repair tasks_completed table: " . DB::error());
 		}
 	}
 

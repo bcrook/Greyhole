@@ -21,6 +21,7 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 class Log {
 	private static $action = 'initialize';
 	private static $old_action;
+	public static $level;
 	
 	public static function set_action($action) {
 		self::$old_action = self::$action;
@@ -36,13 +37,13 @@ class Log {
 	}
 
 	public static function log($local_log_level, $text) {
-		global $greyhole_log_file, $log_level, $log_memory_usage;
-		if ($local_log_level > $log_level) {
+		global $greyhole_log_file, $log_memory_usage;
+		if ($local_log_level > self::$level) {
 			return;
 		}
 
 		$date = date("M d H:i:s");
-		if ($log_level >= PERF) {
+		if (self::$level >= PERF) {
 			$utimestamp = microtime(true);
 			$timestamp = floor($utimestamp);
 			$date .= '.' . round(($utimestamp - $timestamp) * 1000000);

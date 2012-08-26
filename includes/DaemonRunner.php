@@ -34,24 +34,19 @@ abstract class DaemonRunner extends AbstractRunner {
 			SambaHelper::process_spool();
 
 			// Check that storage pool drives are OK (using their UUID, or .greyhole_uses_this files)
-			Log::set_action('check_pool');
-			check_storage_pool_drives();
+			StoragePoolHelper::check_storage_pool_drives();
 
 			// Execute the next tasks from the tasks queue ('tasks' table in the database)
-			execute_next_task();
+			$task = Task::getNext(INCL_MD5);
+			if ($task->execute()) {
+        		$task->archive();
+			}
 		}
-	}
-
-	public function finish($returnValue = 0) {
-		// The daemon should never finish; it will be killed by the init script.
-		// Not that it can reach finish() anyway, since it's in an infinite while(TRUE) loop in run()... :)
 	}
 	
 	private function initialize() {
-		global $DB;
-		
 		// Check the database tables, and repair them if needed.
-		$DB->repair_tables();
+		DB::repair_tables();
 		
 		// Creates a GUID (if one doesn't exist); will be used to uniquely identify this client when reporting usage to greyhole.net
 		GetGUIDCliRunner::setUniqID();
@@ -72,9 +67,9 @@ abstract class DaemonRunner extends AbstractRunner {
 		SambaHelper::process_spool();
 		
 		// Simplify the list of tasks in the database. Writing the same file over and over will result in Greyhole only processing one write task.
-		simplify_tasks();
+		Task::simplify();
 	}
-
+    
 	private static function terminology_conversion() {
 		self::convert_folders('.gh_graveyard','.gh_metastore');
 		self::convert_folders('.gh_graveyard_backup','.gh_metastore_backup');
@@ -155,6 +150,11 @@ abstract class DaemonRunner extends AbstractRunner {
 
 		Settings::set('sp_drives_definitions', $drives_definitions);
 		return $drives_definitions;
+	}
+
+	public function finish($returnValue = 0) {
+		// The daemon should never finish; it will be killed by the init script.
+		// Not that it can reach finish() anyway, since it's in an infinite while(TRUE) loop in run()... :)
 	}
 }
 

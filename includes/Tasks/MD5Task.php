@@ -1,6 +1,6 @@
 <?php
 /*
-Copyright 2009-2012 Guillaume Boudreau, Andrew Hopkinson
+Copyright 2010-2012 Guillaume Boudreau
 
 This file is part of Greyhole.
 
@@ -18,12 +18,11 @@ You should have received a copy of the GNU General Public License
 along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-class CancelBalanceCliRunner extends AbstractCliRunner {
-	public function run() {
-		DB::query("DELETE FROM tasks WHERE action = 'balance'") or Log::log(CRITICAL, "Can't delete balance tasks: " . DB::error());
-		$this->log("All scheduled balance tasks have now been deleted.");
-		$this->restart_service();
-	}
+class MD5Task extends Task {
+    public function execute() {
+        parent::execute();
+        
+		gh_check_md5($task);
+    }
 }
-
 ?>

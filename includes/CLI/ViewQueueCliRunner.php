@@ -30,23 +30,23 @@ class ViewQueueCliRunner extends AbstractAnonymousCliRunner {
 		$queues = array();
 		$total_num_writes_pending = $total_num_delete_pending = $total_num_rename_pending = $total_num_fsck_pending = 0;
 		foreach ($shares_names as $share_name) {
-			$result = db_query(sprintf("SELECT COUNT(*) AS num FROM tasks WHERE action = 'write' AND share = '%s' AND complete IN ('yes', 'thawed')", db_escape_string($share_name))) or die("Can't find # of writes in tasks table: " . db_error());
-			$row = db_fetch_object($result);
+			$result = DB::query(sprintf("SELECT COUNT(*) AS num FROM tasks WHERE action = 'write' AND share = '%s' AND complete IN ('yes', 'thawed')", DB::escape_string($share_name))) or die("Can't find # of writes in tasks table: " . DB::error());
+			$row = DB::fetch_object($result);
 			$num_writes_pending = (int) $row->num;
 			$total_num_writes_pending += $num_writes_pending;
 
-			$result = db_query(sprintf("SELECT COUNT(*) AS num FROM tasks WHERE (action = 'unlink' OR action = 'rmdir') AND share = '%s' AND complete IN ('yes', 'thawed')", db_escape_string($share_name))) or die("Can't find # of deletes in tasks table: " . db_error());
-			$row = db_fetch_object($result);
+			$result = DB::query(sprintf("SELECT COUNT(*) AS num FROM tasks WHERE (action = 'unlink' OR action = 'rmdir') AND share = '%s' AND complete IN ('yes', 'thawed')", DB::escape_string($share_name))) or die("Can't find # of deletes in tasks table: " . DB::error());
+			$row = DB::fetch_object($result);
 			$num_delete_pending = (int) $row->num;
 			$total_num_delete_pending += $num_delete_pending;
 
-			$result = db_query(sprintf("SELECT COUNT(*) AS num FROM tasks WHERE action = 'rename' AND share = '%s' AND complete IN ('yes', 'thawed')", db_escape_string($share_name))) or die("Can't find # of renames in tasks table: " . db_error());
-			$row = db_fetch_object($result);
+			$result = DB::query(sprintf("SELECT COUNT(*) AS num FROM tasks WHERE action = 'rename' AND share = '%s' AND complete IN ('yes', 'thawed')", DB::escape_string($share_name))) or die("Can't find # of renames in tasks table: " . DB::error());
+			$row = DB::fetch_object($result);
 			$num_rename_pending = (int) $row->num;
 			$total_num_rename_pending += $num_rename_pending;
 
-			$result = db_query(sprintf("SELECT COUNT(*) AS num FROM tasks WHERE (action = 'fsck' OR action = 'fsck_file' OR action = 'md5') AND share = '%s'", db_escape_string($share_name))) or die("Can't find # of fsck in tasks table: " . db_error());
-			$row = db_fetch_object($result);
+			$result = DB::query(sprintf("SELECT COUNT(*) AS num FROM tasks WHERE (action = 'fsck' OR action = 'fsck_file' OR action = 'md5') AND share = '%s'", DB::escape_string($share_name))) or die("Can't find # of fsck in tasks table: " . DB::error());
+			$row = DB::fetch_object($result);
 			$num_fsck_pending = (int) $row->num;
 			$total_num_fsck_pending += $num_fsck_pending;
 

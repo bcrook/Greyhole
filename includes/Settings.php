@@ -24,8 +24,8 @@ class Settings {
 		if ($value !== FALSE) {
 			$query .= sprintf(" AND value LIKE '%s'", $value);
 		}
-		$result = db_query($query) or Log::log(CRITICAL, "Can't select setting '$name'/'$value' from settings table: " . db_error());
-		$setting = db_fetch_object($result);
+		$result = DB::query($query) or Log::log(CRITICAL, "Can't select setting '$name'/'$value' from settings table: " . DB::error());
+		$setting = DB::fetch_object($result);
 		if ($setting === FALSE) {
 			return FALSE;
 		}
@@ -36,20 +36,20 @@ class Settings {
 		if (is_array($value)) {
 			$value = serialize($value);
 		}
-		db_insert_setting($name, $value);
+		DB::insert_setting($name, $value);
 		return (object) array('name' => $name, 'value' => $value);
 	}
 
 	public static function rename($from, $to) {
 		$query = sprintf("UPDATE settings SET name = '%s' WHERE name = '%s'", $to, $from);
-		db_query($query) or Log::log(CRITICAL, "Can't rename setting '$from' to '$to': " . db_error());
+		DB::query($query) or Log::log(CRITICAL, "Can't rename setting '$from' to '$to': " . DB::error());
 	}
 
 	public static function backup() {
 		global $storage_pool_drives;
-		$result = db_query("SELECT * FROM settings") or Log::log(CRITICAL, "Can't select settings for backup: " . db_error());
+		$result = DB::query("SELECT * FROM settings") or Log::log(CRITICAL, "Can't select settings for backup: " . DB::error());
 		$settings = array();
-		while ($setting = db_fetch_object($result)) {
+		while ($setting = DB::fetch_object($result)) {
 			$settings[] = $setting;
 		}
 		foreach ($storage_pool_drives as $sp_drive) {

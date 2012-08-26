@@ -51,48 +51,58 @@ abstract class AbstractDatabaseHelper {
 	abstract public function insert_setting($name, $value);
 	abstract public function repair_tables();
 	abstract protected function migrate();
-	
+
+	public function getEngine() {
+	    return $this->options->engine;
+	}
 }
 
-// Those always accessible functions will simplify the use of the $DB->something() functions outside the AbstractDatabaseHelper classes.
-function db_query($query) {
-	global $DB;
-	return $DB->query($query);
-}
+// Those always accessible static functions will simplify the use of the $DB->something() functions outside the AbstractDatabaseHelper classes.
+class DB {
+    public static function connect() {
+    	global $DB;
+    	return $DB->connect() or Log::log(CRITICAL, "Can't connect to " . $DB->getEngine() . " database.");
+    }
 
-function db_escape_string($string) {
-	global $DB;
-	return $DB->escape_string($string);
-}
+    public static function query($query) {
+    	global $DB;
+    	return $DB->query($query);
+    }
 
-function db_fetch_object($result) {
-	global $DB;
-	return $DB->fetch_object($result);
-}
+    public static function escape_string($string) {
+    	global $DB;
+    	return $DB->escape_string($string);
+    }
 
-function db_free_result($result) {
-	global $DB;
-	return $DB->free_result($result);
-}
+    public static function fetch_object($result) {
+    	global $DB;
+    	return $DB->fetch_object($result);
+    }
 
-function db_insert_id() {
-	global $DB;
-	return $DB->insert_id();
-}
+    public static function free_result($result) {
+    	global $DB;
+    	return $DB->free_result($result);
+    }
 
-function db_error() {
-	global $DB;
-	return $DB->error();
-}
+    public static function insert_id() {
+    	global $DB;
+    	return $DB->insert_id();
+    }
 
-function db_insert_setting($name, $value) {
-	global $DB;
-	return $DB->insert_setting($name, $value);
-}
+    public static function error() {
+    	global $DB;
+    	return $DB->error();
+    }
 
-function db_repair_tables() {
-	global $DB;
-	return $DB->repair_tables();
+    public static function insert_setting($name, $value) {
+    	global $DB;
+    	return $DB->insert_setting($name, $value);
+    }
+
+    public static function repair_tables() {
+    	global $DB;
+    	return $DB->repair_tables();
+    }
 }
 
 ?>

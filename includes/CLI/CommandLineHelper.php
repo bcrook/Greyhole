@@ -116,14 +116,13 @@ class CommandLineHelper {
 		process_config();
 		
 		global $db_options, $DB;
-		if ($db_options->engine == 'sqlite') {
+		if ($db_options->engine == DatabaseHelperSQLite::engine) {
 			$DB = new DatabaseHelperSQLite($db_options);
 		} else {
 			$DB = new DatabaseHelperMySQL($db_options);
 		}
 
-		//$DB->connect(Config::getDatabaseConfig());
-		$DB->connect() or Log::log(CRITICAL, "Can't connect to $db_options->engine database.");
+		DB::connect();
 		
 		if (!isset($cliRunner)) {
 			$cliRunner = $this->actionCmd->getNewRunner($this->options);

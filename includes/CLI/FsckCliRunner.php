@@ -21,6 +21,16 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 class FsckCliRunner extends AbstractCliRunner {
 	private $dir = '';
 	private $fsck_options = array();
+	
+	private static $available_options = array(
+	   'email-report' => OPTION_EMAIL,
+	   'dont-walk-metadata-store' => OPTION_METASTORE,
+	   'if-conf-changed' => OPTION_IF_CONF_CHANGED,
+	   'disk-usage-report' => OPTION_DU,
+	   'find-orphaned-files' => OPTION_ORPHANED,
+	   'checksums' => OPTION_CHECKSUMS,
+	   'delete-orphaned-metadata' => OPTION_DEL_ORPHANED_METADATA
+	);
 
 	function __construct($options) {
 		parent::__construct($options);
@@ -32,26 +42,11 @@ class FsckCliRunner extends AbstractCliRunner {
 				$this->finish(1);
 			}
 		}
-		if (isset($this->options['email-report'])) {
-			$this->fsck_options[] = 'email';
-		}
-		if (!isset($this->options['dont-walk-metadata-store'])) {
-			$this->fsck_options[] = 'metastore';
-		}
-		if (isset($this->options['if-conf-changed'])) {
-			$this->fsck_options[] = 'if-conf-changed';
-		}
-		if (isset($this->options['disk-usage-report'])) {
-			$this->fsck_options[] = 'du';
-		}
-		if (isset($this->options['find-orphaned-files'])) {
-			$this->fsck_options[] = 'orphaned';
-		}
-		if (isset($this->options['checksums'])) {
-			$this->fsck_options[] = 'checksums';
-		}
-		if (isset($this->options['delete-orphaned-metadata'])) {
-			$this->fsck_options[] = 'del-orphaned-metadata';
+		
+		foreach (self::$available_options as $cli_option => $option) {
+    		if (isset($this->options[$cli_option])) {
+    			$this->fsck_options[] = $option;
+    		}
 		}
 	}
 
@@ -65,10 +60,10 @@ class FsckCliRunner extends AbstractCliRunner {
 			$this->dir = 'all shares';
 		} else {
 			$query = sprintf("INSERT INTO tasks (action, share, additional_info, complete) VALUES ('fsck', '%s', %s, 'yes')",
-				db_escape_string($this->dir),
+				DB::escape_string($this->dir),
 				(!empty($this->fsck_options) ? "'" . implode('|', $this->fsck_options) . "'" : "NULL")
 			);
-			db_query($query) or Log::log(CRITICAL, "Can't insert fsck task: " . db_error());
+			DB::query($query) or Log::log(CRITICAL, "Can't insert fsck task: " . DB::error());
 		}
 		$this->log("fsck of $this->dir has been scheduled. It will start after all currently pending tasks have been completed.");
 		if (isset($this->options['checksums'])) {

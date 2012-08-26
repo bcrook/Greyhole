@@ -22,17 +22,17 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
    Small abstraction layer for supporting MySQL and SQLite based
    on a user choice. Specify
 
-             db_engine = sqlite
-             db_path = /var/cache/greyhole.sqlite
+        db_engine = sqlite
+        db_path = /var/cache/greyhole.sqlite
 
-   in /etc/greyhole.conf to enable sqlite support, otherwise the
-   standard Greyhole MySQL support will be used.
+   in /etc/greyhole.conf to enable SQLite support.
 
    Carlos Puchol, Amahi
    cpg+git@amahi.org
 */
 
 class DatabaseHelperSQLite {
+    public const engine = 'sqlite';
 
 	public function connect() {
 		// create the database file, if it does not exists already.
