@@ -48,7 +48,7 @@ class SambaHelper {
 		}
 
 		if (!$vfs_is_ok) {
-			Log::log(WARN, "Greyhole VFS module for Samba was missing, or the wrong version for your Samba. It will now be replaced with a symlink to $lib_dir/greyhole/greyhole-samba$version.so");
+			Log::warn("Greyhole VFS module for Samba was missing, or the wrong version for your Samba. It will now be replaced with a symlink to $lib_dir/greyhole/greyhole-samba$version.so");
 			$vfs_target = "$lib_dir/greyhole/greyhole-samba$version.so";
 			if (is_file($vfs_file)) {
 				unlink($vfs_file);
@@ -63,7 +63,7 @@ class SambaHelper {
 	}
 
 	public static function restart() {
-		Log::log(INFO, "The Samba daemon will now restart...");
+		Log::info("The Samba daemon will now restart...");
 		if (is_file('/etc/init/smbd.conf')) {
 			exec("/sbin/restart smbd");
 		} else if (is_file('/etc/init.d/samba')) {
@@ -73,7 +73,7 @@ class SambaHelper {
 		} else if (is_file('/etc/init.d/smbd')) {
 			exec("/etc/init.d/smbd restart");
 		} else {
-			Log::log(CRITICAL, "Couldn't find how to restart Samba. Please restart the Samba daemon manually.");
+			Log::critical("Couldn't find how to restart Samba. Please restart the Samba daemon manually.");
 		}
 	}
 	
@@ -87,14 +87,14 @@ class SambaHelper {
 		// This will effectively 'batch' large file operations to make sure the DB doesn't become a problem because of the number of rows,
 		//   and this will allow the end-user to see real activity, other that new rows in greyhole.tasks...
 		$query = "SELECT COUNT(*) num_rows FROM tasks";
-		$result = DB::query($query) or Log::log(CRITICAL, "Can't get tasks count: " . DB::error());
+		$result = DB::query($query) or Log::critical("Can't get tasks count: " . DB::error());
 		$row = DB::fetch_object($result);
 		DB::free_result($result);
 		$num_rows = (int) $row->num_rows;
 		if ($num_rows >= ($max_queued_tasks * 0.9)) {
 			Log::restore_previous_action();
 			if (time() % 10 == 0) {
-				Log::log(DEBUG, "  More than " . ($max_queued_tasks * 0.9) . " tasks queued... Won't queue any more at this time.");
+				Log::debug("  More than " . ($max_queued_tasks * 0.9) . " tasks queued... Won't queue any more at this time.");
 			}
 			return;
 		}
@@ -111,7 +111,7 @@ class SambaHelper {
 			}
 
 			if ($last_line === FALSE) {
-				Log::log(DEBUG, "Processing Samba spool...");
+				Log::debug("Processing Samba spool...");
 			}
 
 			foreach ($files as $filename) {
@@ -137,7 +137,7 @@ class SambaHelper {
 						DB::escape_string($share),
 						$fd
 					);
-					DB::query($query) or Log::log(CRITICAL, "Error updating tasks (1): " . DB::error() . "; Query: $query");
+					DB::query($query) or Log::critical("Error updating tasks (1): " . DB::error() . "; Query: $query");
 				}
 
 				$line = $line_ar;
@@ -149,7 +149,7 @@ class SambaHelper {
 				}
 				$result = array_pop($line);
 				if (mb_strpos($result, 'failed') === 0) {
-					Log::log(DEBUG, "Failed $act in $share/$line[0]. Skipping.");
+					Log::debug("Failed $act in $share/$line[0]. Skipping.");
 					continue;
 				}
 				unset($fullpath);
@@ -193,12 +193,12 @@ class SambaHelper {
 						isset($fullpath_target) ? "'".DB::escape_string(clean_dir($fullpath_target))."'" : (isset($fd) ? "'$fd'" : 'NULL'),
 						$act == 'write' ? 'no' : 'yes'
 					);
-					DB::query($query) or Log::log(CRITICAL, "Error inserting task: " . DB::error() . "; Query: $query");
+					DB::query($query) or Log::critical("Error inserting task: " . DB::error() . "; Query: $query");
 				}
 
 				// If we have enough queued tasks ($max_queued_tasks), let's stop parsing the log, and get some work done.
 				if ($num_rows+$new_tasks >= $max_queued_tasks) {
-					Log::log(DEBUG, "  We now have more than $max_queued_tasks tasks queued... Will stop parsing for now.");
+					Log::debug("  We now have more than $max_queued_tasks tasks queued... Will stop parsing for now.");
 					break;
 				}
 			}
@@ -214,15 +214,15 @@ class SambaHelper {
 				DB::escape_string($share),
 				$fd
 			);
-			DB::query($query) or Log::log(CRITICAL, "Error updating tasks (2): " . DB::error() . "; Query: $query");
+			DB::query($query) or Log::critical("Error updating tasks (2): " . DB::error() . "; Query: $query");
 		}
 
 		if ($new_tasks > 0) {
-			Log::log(DEBUG, "Found $new_tasks new tasks in spool.");
+			Log::debug("Found $new_tasks new tasks in spool.");
 
 			if ($simplify_after_parse) {
 				$query = "SELECT COUNT(*) num_rows FROM tasks";
-				$result = DB::query($query) or Log::log(CRITICAL, "Can't get tasks count: " . DB::error());
+				$result = DB::query($query) or Log::critical("Can't get tasks count: " . DB::error());
 				$row = DB::fetch_object($result);
 				DB::free_result($result);
 				$num_rows = (int) $row->num_rows;

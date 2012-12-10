@@ -18,14 +18,6 @@ You should have received a copy of the GNU General Public License
 along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-define('PERF', 9);
-define('TEST', 8);
-define('DEBUG', 7);
-define('INFO',  6);
-define('WARN',  4);
-define('ERROR', 3);
-define('CRITICAL', 2);
-
 date_default_timezone_set(date_default_timezone_get());
 
 set_error_handler("gh_error_handler");
@@ -82,7 +74,7 @@ function recursive_include_parser($file) {
 			$ok_to_execute &= !($perms & 0x0002);
 
 			if (!$ok_to_execute) {
-				Log::log(WARN, "Config file '{$file}' is executable but file permissions are insecure, only the file's contents will be included.");
+				Log::warn("Config file '{$file}' is executable but file permissions are insecure, only the file's contents will be included.");
 			}
 		}
 
@@ -133,7 +125,7 @@ function parse_config() {
 			foreach ($deprecated_options as $old_name => $new_name) {
 			    if (mb_strpos($name, $old_name) !== FALSE) {
 				    $fixed_name = str_replace($old_name, $new_name, $name);
-				    #Log::log(WARN, "Deprecated option found in greyhole.conf: $name. You should change that to: $fixed_name");
+				    #Log::warn("Deprecated option found in greyhole.conf: $name. You should change that to: $fixed_name");
 				    $name = $fixed_name;
 				}
 			}
@@ -252,7 +244,7 @@ function parse_config() {
 		}
 		$df_command .= " 2>&1 | grep '%' | grep -v \"^df: .*: No such file or directory$\"";
 	} else {
-		Log::log(WARN, "You have no storage_pool_drive defined. Greyhole can't run.");
+		Log::warn("You have no storage_pool_drive defined. Greyhole can't run.");
 		return FALSE;
 	}
 
@@ -291,7 +283,7 @@ function parse_config() {
 		}
 		if (!isset($share_options['landing_zone'])) {
 			global $config_file;
-			Log::log(WARN, "Found a share ($share_name) defined in $config_file with no path in " . SambaHelper::$config_file . ". Either add this share in " . SambaHelper::$config_file . ", or remove it from $config_file, then restart Greyhole.");
+			Log::warn("Found a share ($share_name) defined in $config_file with no path in " . SambaHelper::$config_file . ". Either add this share in " . SambaHelper::$config_file . ", or remove it from $config_file, then restart Greyhole.");
 			return FALSE;
 		}
 		if (!isset($share_options['delete_moves_to_trash'])) {
@@ -312,7 +304,7 @@ function parse_config() {
 		// Validate that the landing zone is NOT a subdirectory of a storage pool drive!
 		foreach ($storage_pool_drives as $key => $sp_drive) {
 			if (mb_strpos($share_options['landing_zone'], $sp_drive) === 0) {
-				Log::log(CRITICAL, "Found a share ($share_name), with path " . $share_options['landing_zone'] . ", which is INSIDE a storage pool drive ($sp_drive). Share directories should never be inside a directory that you have in your storage pool.\nFor your shares to use your storage pool, you just need them to have 'vfs objects = greyhole' in their (smb.conf) config; their location on your file system is irrelevant.");
+				Log::critical("Found a share ($share_name), with path " . $share_options['landing_zone'] . ", which is INSIDE a storage pool drive ($sp_drive). Share directories should never be inside a directory that you have in your storage pool.\nFor your shares to use your storage pool, you just need them to have 'vfs objects = greyhole' in their (smb.conf) config; their location on your file system is irrelevant.");
 			}
 		}
 	}
@@ -373,7 +365,7 @@ function explode_full_path($full_path) {
 
 function gh_shutdown() {
 	if ($err = error_get_last()) {
-		Log::log(ERROR, "PHP Fatal Error: " . $err['message'] . "; BT: " . basename($err['file']) . '[L' . $err['line'] . '] ');
+		Log::error("PHP Fatal Error: " . $err['message'] . "; BT: " . basename($err['file']) . '[L' . $err['line'] . '] ');
 	}
 }
 
@@ -388,7 +380,7 @@ function gh_error_handler($errno, $errstr, $errfile, $errline, $errcontext) {
 	case E_PARSE:
 	case E_CORE_ERROR:
 	case E_COMPILE_ERROR:
-		Log::log(CRITICAL, "PHP Error [$errno]: $errstr in $errfile on line $errline");
+		Log::critical("PHP Error [$errno]: $errstr in $errfile on line $errline");
 		break;
 
 	case E_WARNING:
@@ -401,11 +393,11 @@ function gh_error_handler($errno, $errstr, $errfile, $errline, $errcontext) {
 			// What would have been logged will be echoed instead.
 			return TRUE;
 		}
-		Log::log(WARN, "PHP Warning [$errno]: $errstr in $errfile on line $errline; BT: " . get_debug_bt());
+		Log::warn("PHP Warning [$errno]: $errstr in $errfile on line $errline; BT: " . get_debug_bt());
 		break;
 
 	default:
-		Log::log(WARN, "PHP Unknown Error [$errno]: $errstr in $errfile on line $errline");
+		Log::warn("PHP Unknown Error [$errno]: $errstr in $errfile on line $errline");
 		break;
 	}
 
@@ -488,14 +480,14 @@ function get_share_landing_zone($share) {
 		return $trash_share['landing_zone'];
 	} else {
 		global $config_file;
-		Log::log(WARN, "  Found a share ($share) with no path in " . SambaHelper::$config_file . ", or missing it's num_copies[$share] config in $config_file. Skipping.");
+		Log::warn("  Found a share ($share) with no path in " . SambaHelper::$config_file . ", or missing it's num_copies[$share] config in $config_file. Skipping.");
 		return FALSE;
 	}
 }
 
 $arch = exec('uname -m');
 if ($arch != 'x86_64') {
-	Log::log(DEBUG, "32-bit system detected: Greyhole will NOT use PHP built-in file functions.");
+	Log::debug("32-bit system detected: Greyhole will NOT use PHP built-in file functions.");
 
 	function gh_filesize($filename) {
 		$result = exec("stat -c %s ".escapeshellarg($filename)." 2>/dev/null");
@@ -556,7 +548,7 @@ if ($arch != 'x86_64') {
 		return $result === 0;
 	}
 } else {
-	Log::log(DEBUG, "64-bit system detected: Greyhole will use PHP built-in file functions.");
+	Log::debug("64-bit system detected: Greyhole will use PHP built-in file functions.");
 
 	function gh_filesize($filename) {
 		return filesize($filename);
@@ -606,30 +598,28 @@ function memory_check() {
 	$used = $usage/$memory_limit;
 	$used = $used * 100;
 	if ($used > 95) {
-		Log::log(CRITICAL, $used . '% memory usage, exiting. Please increase memory_limit in /etc/greyhole.conf');
+		Log::critical($used . '% memory usage, exiting. Please increase memory_limit in /etc/greyhole.conf');
 	}
 }
 
 class metafile_iterator implements Iterator {
 	private $path;
 	private $share;
-	private $load_nok_metafiles;
+	private $flags;
 	private $quiet;
-	private $check_symlink;
 	private $metafiles;
 	private $metastores;
 	private $dir_handle;
 
-	public function __construct($share, $path, $load_nok_metafiles=FALSE, $quiet=FALSE, $check_symlink=TRUE) {
-		$this->quiet = $quiet;
+	public function __construct($share, $path, $flags=0, $check_symlink=TRUE) {
+		$this->flags = $flags;
+		$this->quiet = $flags & METAFILES_OPTION_QUIET !== 0;
 		$this->share = $share;
 		$this->path = $path;
-		$this->check_symlink = $check_symlink;
-		$this->load_nok_metafiles = $load_nok_metafiles;
 	}
 
 	public function rewind() {
-		$this->metastores = get_metastores();
+		$this->metastores = Metastore::get_stores();
 		$this->directory_stack = array($this->path);
 		$this->dir_handle = NULL;
 		$this->metafiles = array();
@@ -649,7 +639,7 @@ class metafile_iterator implements Iterator {
 		while(count($this->directory_stack)>0 && $this->directory_stack !== NULL) {
 			$this->dir = array_pop($this->directory_stack);
 			if (!$this->quiet) {
-				Log::log(DEBUG, "Loading metadata files for (dir) " . clean_dir($this->share . (!empty($this->dir) ? "/" . $this->dir : "")) . " ...");
+				Log::debug("Loading metadata files for (dir) " . clean_dir($this->share . (!empty($this->dir) ? "/" . $this->dir : "")) . " ...");
 			}
 			for( $i = 0; $i < count($this->metastores); $i++ ) {
 				$metastore = $this->metastores[$i];
@@ -673,7 +663,7 @@ class metafile_iterator implements Iterator {
 							if(isset($this->metafiles[$full_filename])) {
 								continue;
 							}						
-							$this->metafiles[$full_filename] = get_metafiles_for_file($this->share, "$this->dir", $file, $this->load_nok_metafiles, $this->quiet, $this->check_symlink);
+							$this->metafiles[$full_filename] = Metastore::metafiles_for_file($this->share, "$this->dir", $file, $this->flags);
 						}
 					}
 					closedir($this->dir_handle);
@@ -686,7 +676,7 @@ class metafile_iterator implements Iterator {
 			
 		}
 		if (!$this->quiet) {
-			Log::log(DEBUG, 'Found ' . count($this->metafiles) . ' metadata files.');
+			Log::debug('Found ' . count($this->metafiles) . ' metadata files.');
 		}
 		return $this->metafiles;
 	}
@@ -747,7 +737,7 @@ class DriveSelection {
         	arsort($sorted_target_drives);
     		arsort($last_resort_sorted_target_drives);
 		} else {
-			Log::log(CRITICAL, "Unknown drive_selection_algorithm found: " . $this->selection_algorithm);
+			Log::critical("Unknown drive_selection_algorithm found: " . $this->selection_algorithm);
 		}
 		// Only keep drives that are in $this->drives
         $this->sorted_target_drives = array();
@@ -798,7 +788,7 @@ class DriveSelection {
             return $ds;
         }
         if (!preg_match('/forced ?\((.+)\) ?(least_used_space|most_available_space)/i', $config_string, $regs)) {
-            Log::log(CRITICAL, "Can't understand the drive_selection_algorithm value: $config_string");
+            Log::critical("Can't understand the drive_selection_algorithm value: $config_string");
         }
         $selection_algorithm = $regs[2];
         $groups = array_map('trim', explode(',', $regs[1]));
@@ -807,7 +797,7 @@ class DriveSelection {
             $num_drives = trim($group[0]);
             $group_name = trim($group[1]);
 			if (!isset($drive_selection_groups[$group_name])) {
-				//Log::log(WARN, "Warning: drive selection group named '$group_name' is undefined.");
+				//Log::warn("Warning: drive selection group named '$group_name' is undefined.");
 				continue;
 			}
             if ($num_drives == 'all' || $num_drives > count($drive_selection_groups[$group_name])) {
@@ -923,7 +913,7 @@ class FSCKLogFile {
 		$last_mod_date = filemtime($logfile);
 		if ($last_mod_date > $this->getLastEmailSentTime()) {
 			global $email_to;
-			Log::log(WARN, "Sending $logfile by email to $email_to");
+			Log::warn("Sending $logfile by email to $email_to");
 			mail($email_to, $this->getSubject(), $this->getBody());
 
 			$this->lastEmailSentTime = $last_mod_date;
@@ -1029,7 +1019,7 @@ function schedule_fsck_all_shares($fsck_options=array()) {
 			DB::escape_string($full_path),
 			(!empty($fsck_options) ? "'" . implode('|', $fsck_options) . "'" : "NULL")
 		);
-		DB::query($query) or Log::log(CRITICAL, "Can't insert fsck task: " . DB::error());
+		DB::query($query) or Log::critical("Can't insert fsck task: " . DB::error());
 	}
 }
 ?>

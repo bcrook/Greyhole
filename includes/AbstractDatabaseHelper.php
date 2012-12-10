@@ -61,7 +61,7 @@ abstract class AbstractDatabaseHelper {
 class DB {
     public static function connect() {
     	global $DB;
-    	return $DB->connect() or Log::log(CRITICAL, "Can't connect to " . $DB->getEngine() . " database.");
+    	return $DB->connect() or Log::critical("Can't connect to " . $DB->getEngine() . " database.");
     }
 
     public static function query($query) {

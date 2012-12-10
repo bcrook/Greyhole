@@ -18,6 +18,14 @@ You should have received a copy of the GNU General Public License
 along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+define('PERF', 9);
+define('TEST', 8);
+define('DEBUG', 7);
+define('INFO',  6);
+define('WARN',  4);
+define('ERROR', 3);
+define('CRITICAL', 2);
+
 class Log {
 	private static $action = 'initialize';
 	private static $old_action;
@@ -35,8 +43,28 @@ class Log {
 	public static function restore_previous_action() {
 		self::$action = self::$old_action;
 	}
+	
+	public static function debug($text) {
+	    self::log(DEBUG, $text);
+	}
+	
+	public static function info($text) {
+	    self::log(INFO, $text);
+	}
+	
+	public static function warn($text) {
+	    self::log(WARN, $text);
+	}
+	
+	public static function error($text) {
+	    self::log(ERROR, $text);
+	}
+	
+	public static function critical($text) {
+	    self::log(CRITICAL, $text);
+	}
 
-	public static function log($local_log_level, $text) {
+	private static function log($local_log_level, $text) {
 		global $greyhole_log_file, $log_memory_usage;
 		if ($local_log_level > self::$level) {
 			return;

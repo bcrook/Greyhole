@@ -22,9 +22,36 @@ class RemoveDirectoryTask extends Task {
     public function execute() {
         parent::execute();
         
-		gh_rmdir($this->task->share, $this->task->full_path);
+        $share = $this->task->share;
+        $full_path = $this->task->full_path;
+        
+    	global $storage_pool_drives, $trash_share_names;
+    	$landing_zone = get_share_landing_zone($share);
+    	if (!$landing_zone) {
+    		return;
+    	}
 
-		parent::post_execute();
+    	Log::info("Directory deleted: $landing_zone/$full_path");
+
+    	if (array_search($share, $trash_share_names) !== FALSE) {
+    		// Remove that directory from all trashes
+    		foreach ($storage_pool_drives as $sp_drive) {
+    			if (@rmdir("$sp_drive/.gh_trash/$full_path")) {
+    				Log::debug("  Removed copy from trash at $sp_drive/.gh_trash/$full_path");
+    			}
+    		}
+    		return;
+    	}
+
+    	foreach ($storage_pool_drives as $sp_drive) {
+    		if (@rmdir("$sp_drive/$share/$full_path/")) {
+    			Log::debug("  Removed copy at $sp_drive/$share/$full_path");
+    		}
+    		$metastore = "$sp_drive/.gh_metastore";
+    		if (@rmdir("$metastore/$share/$full_path/")) {
+    			Log::debug("  Removed metadata files directory $metastore/$share/$full_path");
+    		}
+    	}
     }
 }
 ?>

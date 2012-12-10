@@ -34,8 +34,13 @@ class CliCommandDefinition {
 	}
 
 	public function getNewRunner($options) {
-		if ($this->cliRunnerClass == null) {
+		if (empty($this->cliRunnerClass)) {
 			return FALSE;
+		}
+		if ($this->cliRunnerClass == 'DaemonRunner') {
+    		require_once('includes/' . $this->cliRunnerClass . '.php');
+		} else {
+    		require_once('includes/CLI/' . $this->cliRunnerClass . '.php');
 		}
 		$ref = new ReflectionClass($this->cliRunnerClass);
 		return $ref->newInstance($options);

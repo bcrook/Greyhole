@@ -18,10 +18,12 @@ You should have received a copy of the GNU General Public License
 along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+require_once('includes/CLI/AbstractCliRunner.php');
+
 class BalanceCliRunner extends AbstractCliRunner {
 	public function run() {
 		$query = "INSERT INTO tasks (action, share, complete) VALUES ('balance', '', 'yes')";
-		DB::query($query) or Log::log(CRITICAL, "Can't insert balance task: " . DB::error());
+		DB::query($query) or Log::critical("Can't insert balance task: " . DB::error());
 		$this->log("A balance has been scheduled. It will start after all currently pending tasks have been completed.");
 		$this->log("This operation will try to even the available space on all drives included in your storage pool.");
 	}

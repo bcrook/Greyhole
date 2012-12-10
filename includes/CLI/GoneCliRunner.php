@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+require_once('includes/CLI/AbstractCliRunner.php');
+
 class GoneCliRunner extends AbstractCliRunner {
 	private $drive;
 	private $action;
@@ -59,7 +61,7 @@ class GoneCliRunner extends AbstractCliRunner {
 		if ($this->action == 'going') {
 			file_put_contents($this->drive . "/.greyhole_used_this", "Flag to prevent Greyhole from thinking this drive disappeared for no reason...");
 			Settings::set_metastore_backup();
-			Log::log(INFO, "Storage pool drive " . $this->drive . " will be removed from the storage pool.");
+			Log::info("Storage pool drive " . $this->drive . " will be removed from the storage pool.");
 			echo("Storage pool drive " . $this->drive . " will be removed from the storage pool.\n");
 
 			// global $going_drive; // Used in function is_greyhole_owned_drive()
@@ -93,7 +95,7 @@ class GoneCliRunner extends AbstractCliRunner {
 
 		mark_gone_ok($this->drive, 'remove');
 		mark_gone_drive_fscked($this->drive, 'remove');
-		Log::log(INFO, "Storage pool drive " . $this->drive . " has been removed.");
+		Log::info("Storage pool drive " . $this->drive . " has been removed.");
 		$this->log("Storage pool drive $this->drive has been removed from your pool, which means the missing file copies that are in this drive will be re-created during the next fsck.");
 
 		if ($this->action == 'going') {

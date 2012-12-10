@@ -64,7 +64,7 @@ class Task {
 	
 	public function execute() {
         // @TODO Remove those globals!
-		global $fsck_report, $storage_pool_drives, $shares_options, $email_to, $sleep_before_task, $frozen_directories, $current_task_id, $locked_files, $fix_symlinks_scanned_dirs;
+		global $sleep_before_task, $frozen_directories, $current_task_id;
 
 		$task = $this->task;
 		if ($task === FALSE) {
@@ -78,8 +78,8 @@ class Task {
 			foreach ($frozen_directories as $frozen_directory) {
 				if (mb_strpos("$task->share/$task->full_path", $frozen_directory) === 0) {
 					Log::set_action($task->action);
-					Log::log(DEBUG, "Now working on task ID $task->id: $task->action " . clean_dir("$task->share/$task->full_path") . ($task->action == 'rename' ? " -> $task->share/$task->additional_info" : ''));
-					Log::log(DEBUG, "  This directory is frozen. Will postpone this task until it is thawed.");
+					Log::debug("Now working on task ID $task->id: $task->action " . clean_dir("$task->share/$task->full_path") . ($task->action == 'rename' ? " -> $task->share/$task->additional_info" : ''));
+					Log::debug("  This directory is frozen. Will postpone this task until it is thawed.");
 					$this->task->complete = 'frozen';
 					$this->postpone('frozen');
 					$this->archive();
@@ -90,13 +90,13 @@ class Task {
 
 		if (($key = array_search($task->id, $sleep_before_task)) !== FALSE) {
 			Log::set_action('sleep');
-			Log::log(DEBUG, "Only locked files operations pending... Sleeping.");
+			Log::debug("Only locked files operations pending... Sleeping.");
 			$this->sleep();
 			$sleep_before_task = array();
 		}
 
 		Log::set_action($task->action);
-		Log::log(INFO, "Now working on task ID $task->id: $task->action " . clean_dir("$task->share/$task->full_path") . ($task->action == 'rename' ? " -> $task->share/$task->additional_info" : ''));
+		Log::info("Now working on task ID $task->id: $task->action " . clean_dir("$task->share/$task->full_path") . ($task->action == 'rename' ? " -> $task->share/$task->additional_info" : ''));
 	}
 	
 	public static function getNext($incl_md5=FALSE, $update_idle=TRUE) {
@@ -115,13 +115,13 @@ class Task {
 		}
 
 		$query = "SELECT id, action, share, full_path, additional_info, complete FROM tasks WHERE complete IN ('yes', 'thawed')" . (!$incl_md5 ? " AND action != 'md5'" : "") . " ORDER BY id ASC LIMIT 20";
-		Task::$result_set = DB::query($query) or Log::log(CRITICAL, "Can't query tasks: " . DB::error());
+		Task::$result_set = DB::query($query) or Log::critical("Can't query tasks: " . DB::error());
 		$task = DB::fetch_object(Task::$result_set);
 
 		if ($task === FALSE && $update_idle) {
 			// No more complete = yes|thawed; let's look for complete = 'idle' tasks.
 			$query = "UPDATE tasks SET complete = 'yes' WHERE complete = 'idle'";
-			DB::query($query) or Log::log(CRITICAL, "Can't update idle tasks to complete tasks: " . DB::error());
+			DB::query($query) or Log::critical("Can't update idle tasks to complete tasks: " . DB::error());
 			$task = Task::getNext($incl_md5, DONT_UPDATE_IDLE);
 		}
 		return Task::instantiate($task);
@@ -129,32 +129,32 @@ class Task {
 	
 	public static function simplify() {
 		Log::set_action('simplify_tasks');
-		Log::log(DEBUG, "Simplifying pending tasks.");
+		Log::debug("Simplifying pending tasks.");
 
 		// Remove locked write tasks
 		$query = "SELECT share, full_path FROM tasks WHERE action = 'write' and complete = 'no'";
-		$result = DB::query($query) or Log::log(CRITICAL, "Can't select locked write tasks: " . DB::error());
+		$result = DB::query($query) or Log::critical("Can't select locked write tasks: " . DB::error());
 		while ($row = DB::fetch_object($result)) {
 			$query = sprintf("DELETE FROM tasks WHERE action = 'write' and complete = 'yes' AND share = '%s' AND full_path = '%s'",
 				DB::escape_string($row->share),
 				DB::escape_string($row->full_path)
 			);
-			DB::query($query) or Log::log(CRITICAL, "Can't delete duplicate of locked write task: " . DB::error());
+			DB::query($query) or Log::critical("Can't delete duplicate of locked write task: " . DB::error());
 		}
 	}
 	
 	private function idle() {
 		Log::set_action('sleep');
-		Log::log(DEBUG, "Nothing to do... Sleeping.");
+		Log::debug("Nothing to do... Sleeping.");
 
 		DB::repair_tables();
 
 		$query = "SELECT * from tasks WHERE action = 'md5' AND complete = 'no' LIMIT 1";
-		$result = DB::query($query) or Log::log(CRITICAL, "Can't query tasks for incomplete md5: " . DB::error());
+		$result = DB::query($query) or Log::critical("Can't query tasks for incomplete md5: " . DB::error());
 		if ($row = DB::fetch_object($result)) {
 			$num_worker_threads = (int) trim(exec("ps x | grep '/usr/bin/greyhole --md5-worker' | grep -v grep | wc -l"));
 			if ($num_worker_threads == 0) {
-				Log::log(DEBUG, "Will spawn new worker threads to work on incomplete checksums calculations.");
+				Log::debug("Will spawn new worker threads to work on incomplete checksums calculations.");
 				foreach ($GLOBALS['storage_pool_drives'] as $sp_drive) {
 					spawn_thread('md5-worker', array($sp_drive));
 				}
@@ -185,7 +185,7 @@ class Task {
     		DB::escape_string($complete),
     		$task_id
     	);
-    	DB::query($query) or Log::log(CRITICAL, "Error inserting postponed task: " . DB::error());
+    	DB::query($query) or Log::critical("Error inserting postponed task: " . DB::error());
     	$sleep_before_task[] = DB::insert_id();
     }
 
@@ -200,11 +200,11 @@ class Task {
 		if (!$worked) {
 			// Let's try a second time... This is kinda important!
 			DB::connect();
-			DB::query($query) or Log::log(CRITICAL, "Can't insert in tasks_completed: " . DB::error());
+			DB::query($query) or Log::critical("Can't insert in tasks_completed: " . DB::error());
 		}
 
 		$query = sprintf("DELETE FROM tasks WHERE id = %d", $this->task->id);
-		DB::query($query) or Log::log(CRITICAL, "Can't delete from tasks: " . DB::error());
+		DB::query($query) or Log::critical("Can't delete from tasks: " . DB::error());
 	}
 
     function hasOption($option) {

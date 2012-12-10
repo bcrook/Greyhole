@@ -29,9 +29,6 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
         db_name = greyhole
 
    in /etc/greyhole.conf to enable MySQL support.
-
-   Carlos Puchol, Amahi
-   cpg+git@amahi.org
 */
 
 class DatabaseHelperMySQL {
@@ -75,20 +72,20 @@ class DatabaseHelperMySQL {
 	
 	public function insert_setting($name, $value) {
 		$query = sprintf("INSERT INTO settings (name, value) VALUES ('%s', '%s') ON DUPLICATE KEY UPDATE value = VALUES(value)", $name, $value);
-		$this->query($query) or Log::log(CRITICAL, "Can't insert/update '$name' setting: " . $this->error());
+		$this->query($query) or Log::critical("Can't insert/update '$name' setting: " . $this->error());
 	}
 	
 	public function repair_tables() {
 		if (Log::action_equals('daemon')) {
-			Log::log(INFO, "Optimizing MySQL tables...");
+			Log::info("Optimizing MySQL tables...");
 		}
-		DB::query("REPAIR TABLE tasks") or Log::log(CRITICAL, "Can't repair tasks table: " . DB::error());
-		DB::query("REPAIR TABLE settings") or Log::log(CRITICAL, "Can't repair settings table: " . DB::error());
+		DB::query("REPAIR TABLE tasks") or Log::critical("Can't repair tasks table: " . DB::error());
+		DB::query("REPAIR TABLE settings") or Log::critical("Can't repair settings table: " . DB::error());
 		// Let's repair tasks_completed only if it's broken!
 		$result = DB::query("SELECT * FROM tasks_completed LIMIT 1");
 		if ($result === FALSE) {
-			Log::log(INFO, "Repairing MySQL tables...");
-			DB::query("REPAIR TABLE tasks_completed") or Log::log(CRITICAL, "Can't repair tasks_completed table: " . DB::error());
+			Log::info("Repairing MySQL tables...");
+			DB::query("REPAIR TABLE tasks_completed") or Log::critical("Can't repair tasks_completed table: " . DB::error());
 		}
 	}
 

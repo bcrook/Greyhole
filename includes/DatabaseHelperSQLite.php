@@ -26,9 +26,6 @@ along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
         db_path = /var/cache/greyhole.sqlite
 
    in /etc/greyhole.conf to enable SQLite support.
-
-   Carlos Puchol, Amahi
-   cpg+git@amahi.org
 */
 
 class DatabaseHelperSQLite {
@@ -74,9 +71,9 @@ class DatabaseHelperSQLite {
 
 	public function insert_setting($name, $value) {
 		$query = sprintf("DELETE FROM settings WHERE name = '%s'", $name);
-		$this->query($query) or Log::log(CRITICAL, "Can't delete '$name' setting: " . $this->error());
+		$this->query($query) or Log::critical("Can't delete '$name' setting: " . $this->error());
 		$query = sprintf("INSERT INTO settings (name, value) VALUES ('%s', '%s')", $name, $value);
-		$this->query($query) or Log::log(CRITICAL, "Can't insert '$name' setting: " . $this->error());
+		$this->query($query) or Log::critical("Can't insert '$name' setting: " . $this->error());
 	}
 	
 	public function repair_tables() {
@@ -89,7 +86,7 @@ class DatabaseHelperSQLite {
 		while ($row = $this->fetch_object($result)) {
 			if (strpos($row->sql, 'complete BOOL NOT NULL') !== FALSE) {
 				// migrate; not supported! @see http://sqlite.org/omitted.html
-				Log::log(CRITICAL, "Your SQLite database is not up to date. Column tasks.complete needs to be a TINYTEXT. Please fix, then retry.");
+				Log::critical("Your SQLite database is not up to date. Column tasks.complete needs to be a TINYTEXT. Please fix, then retry.");
 			}
 		}
 	}

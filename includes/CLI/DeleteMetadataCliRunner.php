@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+require_once('includes/CLI/AbstractCliRunner.php');
+
 class DeleteMetadataCliRunner extends AbstractCliRunner {
 	private $dir;
 
@@ -34,11 +36,9 @@ class DeleteMetadataCliRunner extends AbstractCliRunner {
 		$share = trim(mb_substr($this->dir, 0, mb_strpos($this->dir, '/')+1), '/');
 		$full_path = trim(mb_substr($this->dir, mb_strpos($this->dir, '/')+1), '/');
 		list($path, $filename) = explode_full_path($full_path);
-		foreach (get_metafile_data_filenames($share, $path, $filename, 1) as $file) {
-			if (file_exists($file)) {
-				$this->log("Deleting $file");
-				unlink($file);
-			}
+		foreach (Metastore::metafiles_filenames_for_file("$share/$path/$filename") as $file) {
+			$this->log("Deleting $file");
+			unlink($file);
 		}
 		$this->log("Done.");
 	}

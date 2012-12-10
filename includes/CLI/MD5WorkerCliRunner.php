@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+require_once('includes/CLI/AbstractCliRunner.php');
+
 class MD5WorkerCliRunner extends AbstractCliRunner {
 	private $drives;
 	
@@ -64,7 +66,7 @@ class MD5WorkerCliRunner extends AbstractCliRunner {
     			}
     		}
     		if ($task === FALSE) {
-    			$result_new_tasks = DB::query($query) or Log::log(CRITICAL, "Can't query md5 tasks: " . DB::error() . "$query");
+    			$result_new_tasks = DB::query($query) or Log::critical("Can't query md5 tasks: " . DB::error() . "$query");
     			$task = DB::fetch_object($result_new_tasks);
     		}
     		if ($task === FALSE) {
@@ -73,8 +75,8 @@ class MD5WorkerCliRunner extends AbstractCliRunner {
     			// Stop this thread once we have nothing more to do, and fsck completed.
     			$task = Task::getNext();
     			if ($task === FALSE || ($task->action != 'fsck' && $task->action != 'fsck_file')) {
-    				Log::log(DEBUG, "MD5 worker thread for " . implode(', ', $this->drives) . " will now exit; it has nothing more to do.");
-    				#Log::log(DEBUG, "Current task: " . var_export($task, TRUE));
+    				Log::debug("MD5 worker thread for " . implode(', ', $this->drives) . " will now exit; it has nothing more to do.");
+    				#Log::debug("Current task: " . var_export($task, TRUE));
     				break;
     			}
 
@@ -83,12 +85,12 @@ class MD5WorkerCliRunner extends AbstractCliRunner {
     		}
     		$last_check_time = time();
 
-    		Log::log(INFO, "Working on MD5 task ID $task->id: $task->additional_info");
+    		Log::info("Working on MD5 task ID $task->id: $task->additional_info");
     		$md5 = md5_file($task->additional_info);
-    		Log::log(DEBUG, "  MD5 for $task->additional_info = $md5");
+    		Log::debug("  MD5 for $task->additional_info = $md5");
 
     		$update_query = sprintf("UPDATE tasks SET complete = 'yes', additional_info = '%s' WHERE id = $task->id", DB::escape_string("$task->additional_info=$md5"));
-    		DB::query($update_query) or Log::log(CRITICAL, "Can't update md5 task: " . DB::error());
+    		DB::query($update_query) or Log::critical("Can't update md5 task: " . DB::error());
     	}
 	}
 }

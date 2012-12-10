@@ -22,9 +22,9 @@ class BalanceTask extends Task {
     public function execute() {
         parent::execute();
         
-		Log::log(INFO, "Starting available space balancing");
+		Log::info("Starting available space balancing");
 		gh_balance();
-		Log::log(INFO, "Available space balancing completed.");
+		Log::info("Available space balancing completed.");
     }
 }
 ?>

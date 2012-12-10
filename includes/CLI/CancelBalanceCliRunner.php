@@ -18,9 +18,11 @@ You should have received a copy of the GNU General Public License
 along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+require_once('includes/CLI/AbstractCliRunner.php');
+
 class CancelBalanceCliRunner extends AbstractCliRunner {
 	public function run() {
-		DB::query("DELETE FROM tasks WHERE action = 'balance'") or Log::log(CRITICAL, "Can't delete balance tasks: " . DB::error());
+		DB::query("DELETE FROM tasks WHERE action = 'balance'") or Log::critical("Can't delete balance tasks: " . DB::error());
 		$this->log("All scheduled balance tasks have now been deleted.");
 		$this->restart_service();
 	}

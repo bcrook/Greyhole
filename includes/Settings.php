@@ -24,7 +24,7 @@ class Settings {
 		if ($value !== FALSE) {
 			$query .= sprintf(" AND value LIKE '%s'", $value);
 		}
-		$result = DB::query($query) or Log::log(CRITICAL, "Can't select setting '$name'/'$value' from settings table: " . DB::error());
+		$result = DB::query($query) or Log::critical("Can't select setting '$name'/'$value' from settings table: " . DB::error());
 		$setting = DB::fetch_object($result);
 		if ($setting === FALSE) {
 			return FALSE;
@@ -42,12 +42,12 @@ class Settings {
 
 	public static function rename($from, $to) {
 		$query = sprintf("UPDATE settings SET name = '%s' WHERE name = '%s'", $to, $from);
-		DB::query($query) or Log::log(CRITICAL, "Can't rename setting '$from' to '$to': " . DB::error());
+		DB::query($query) or Log::critical("Can't rename setting '$from' to '$to': " . DB::error());
 	}
 
 	public static function backup() {
 		global $storage_pool_drives;
-		$result = DB::query("SELECT * FROM settings") or Log::log(CRITICAL, "Can't select settings for backup: " . DB::error());
+		$result = DB::query("SELECT * FROM settings") or Log::critical("Can't select settings for backup: " . DB::error());
 		$settings = array();
 		while ($setting = DB::fetch_object($result)) {
 			$settings[] = $setting;
@@ -74,7 +74,7 @@ class Settings {
 			}
 		}
 		if (isset($backup_file)) {
-			Log::log(INFO, "Restoring settings from last backup: $backup_file");
+			Log::info("Restoring settings from last backup: $backup_file");
 			$settings = unserialize(file_get_contents($backup_file));
 			foreach ($settings as $setting) {
 				self::set($setting->name, $setting->value);
@@ -93,12 +93,12 @@ class Settings {
 			return;
 		}
 
-		Log::log(DEBUG, "Loading metadata store backup directories...");
+		Log::debug("Loading metadata store backup directories...");
 		if (empty($metastore_backup_drives)) {
 			// In the DB ?
 			$metastore_backup_drives = self::get('metastore_backup_directory', TRUE);
 			if ($metastore_backup_drives) {
-				Log::log(DEBUG, "  Found " . count($metastore_backup_drives) . " directories in the settings table.");
+				Log::debug("  Found " . count($metastore_backup_drives) . " directories in the settings table.");
 			} else if ($try_restore) {
 				// Try to load a backup from the data drive, if we can find one.
 				if (self::restore()) {
@@ -115,7 +115,7 @@ class Settings {
 			foreach ($metastore_backup_drives as $key => $metastore_backup_drive) {
 				if (!is_greyhole_owned_drive(str_replace('/.gh_metastore_backup', '', $metastore_backup_drive))) {
 					// Directory is now invalid; stop using it.
-					Log::log(DEBUG, "Removing $metastore_backup_drive from available 'metastore_backup_directories' - this directory isn't a Greyhole storage pool drive (anymore?)");
+					Log::debug("Removing $metastore_backup_drive from available 'metastore_backup_directories' - this directory isn't a Greyhole storage pool drive (anymore?)");
 					unset($metastore_backup_drives[$key]);
 				} else if (!is_dir($metastore_backup_drive)) {
 					// Directory is invalid, but needs to be created (was rm'ed?)
@@ -125,7 +125,7 @@ class Settings {
 		}
 
 		if (empty($metastore_backup_drives) || count($metastore_backup_drives) < $num_metastore_backups_needed) {
-			Log::log(DEBUG, "  Missing some drives. Need $num_metastore_backups_needed, currently have " . count($metastore_backup_drives) . ". Will select more...");
+			Log::debug("  Missing some drives. Need $num_metastore_backups_needed, currently have " . count($metastore_backup_drives) . ". Will select more...");
 			$metastore_backup_drives_hash = array();
 			if (count($metastore_backup_drives) > 0) {
 				$metastore_backup_drives_hash[array_shift($metastore_backup_drives)] = TRUE;
@@ -138,7 +138,7 @@ class Settings {
 				if (!is_dir($metastore_backup_drive)) {
 					mkdir($metastore_backup_drive);
 				}
-				Log::log(DEBUG, "    Randomly picked $metastore_backup_drive");
+				Log::debug("    Randomly picked $metastore_backup_drive");
 			}
 			$metastore_backup_drives = array_keys($metastore_backup_drives_hash);
 

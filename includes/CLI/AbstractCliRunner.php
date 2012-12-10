@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+require_once('includes/AbstractRunner.php');
+
 abstract class AbstractCliRunner extends AbstractRunner {
 	
 	protected $options;

@@ -69,14 +69,14 @@ class StoragePoolHelper {
     			}
     			mark_gone_drive_fscked($sp_drive);
     			$missing_drives[] = $sp_drive;
-    			Log::log(WARN, "Warning! It seems the partition UUID of $sp_drive changed. This probably means this mount is currently unmounted, or that you replaced this drive and didn't use 'greyhole --replace'. Because of that, Greyhole will NOT use this drive at this time.");
-    			Log::log(DEBUG, "Email sent for gone drive: $sp_drive");
+    			Log::warn("Warning! It seems the partition UUID of $sp_drive changed. This probably means this mount is currently unmounted, or that you replaced this drive and didn't use 'greyhole --replace'. Because of that, Greyhole will NOT use this drive at this time.");
+    			Log::debug("Email sent for gone drive: $sp_drive");
     			$gone_ok_drives[$sp_drive] = TRUE; // The upcoming fsck should not recreate missing copies just yet
     		} else if ((gone_ok($sp_drive, $j++ == 0) || gone_fscked($sp_drive, $i++ == 0)) && self::is_drive_ok($sp_drive)) {
     			// $sp_drive is now back
     			$needs_fsck = 2;
     			$returned_drives[] = $sp_drive;
-    			Log::log(DEBUG, "Email sent for revived drive: $sp_drive");
+    			Log::debug("Email sent for revived drive: $sp_drive");
 
     			mark_gone_ok($sp_drive, 'remove');
     			mark_gone_drive_fscked($sp_drive, 'remove');
@@ -133,30 +133,30 @@ class StoragePoolHelper {
     	}
     	if ($needs_fsck !== FALSE) {
     		Settings::set_metastore_backup();
-    		get_metastores(FALSE); // FALSE => Resets the metastores cache
+    		Metastore::get_stores(SKIP_CACHE);
     		clearstatcache();
 
     		if (!$skip_fsck) {
     			global $shares_options;
     			initialize_fsck_report('All shares');
     			if($needs_fsck === 2) {
-    				foreach ($returned_drives as $drive) {
-    					$metastores = get_metastores_from_storage_volume($drive);
-    					Log::log(INFO, "Starting fsck for metadata store on $drive which came back online.");
+    				foreach ($returned_drives as $sp_drive) {
+    					$metastores = Metastore::stores_on_storage_drive($sp_drive);
+    					Log::info("Starting fsck for metadata store on $sp_drive which came back online.");
     					foreach($metastores as $metastore) {
     						foreach($shares_options as $share_name => $share_options) {
     							gh_fsck_metastore($metastore,"/$share_name", $share_name);
     						}
     					}
-    					Log::log(INFO, "fsck for returning drive $drive's metadata store completed.");
+    					Log::info("fsck for returning drive $sp_drive's metadata store completed.");
     				}
-    				Log::log(INFO, "Starting fsck for all shares - caused by missing drive that came back online.");
+    				Log::info("Starting fsck for all shares - caused by missing drive that came back online.");
     			}else{
-    				Log::log(INFO, "Starting fsck for all shares - caused by missing drive. Will just recreate symlinks to existing copies when possible; won't create new copies just yet.");
+    				Log::info("Starting fsck for all shares - caused by missing drive. Will just recreate symlinks to existing copies when possible; won't create new copies just yet.");
     				fix_all_symlinks();
     			}
     			schedule_fsck_all_shares(array('email'));
-    			Log::log(INFO, "  fsck for all shares scheduled.");
+    			Log::info("  fsck for all shares scheduled.");
     		}
 
     		// Refresh $gone_ok_drives to it's real value (from the DB)

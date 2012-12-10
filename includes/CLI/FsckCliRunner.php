@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with Greyhole.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+require_once('includes/CLI/AbstractCliRunner.php');
+
 class FsckCliRunner extends AbstractCliRunner {
 	private $dir = '';
 	private $fsck_options = array();
@@ -63,7 +65,7 @@ class FsckCliRunner extends AbstractCliRunner {
 				DB::escape_string($this->dir),
 				(!empty($this->fsck_options) ? "'" . implode('|', $this->fsck_options) . "'" : "NULL")
 			);
-			DB::query($query) or Log::log(CRITICAL, "Can't insert fsck task: " . DB::error());
+			DB::query($query) or Log::critical("Can't insert fsck task: " . DB::error());
 		}
 		$this->log("fsck of $this->dir has been scheduled. It will start after all currently pending tasks have been completed.");
 		if (isset($this->options['checksums'])) {
