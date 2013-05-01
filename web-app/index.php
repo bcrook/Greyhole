@@ -87,6 +87,7 @@ function escape($string) {
 ?>
 <html>
   <head>
+    <title>Greyhole - Disk Usage</title>
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <script type="text/javascript" src="https://www.google.com/jsapi"></script>
